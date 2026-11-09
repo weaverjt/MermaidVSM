@@ -681,6 +681,7 @@
           }
           applyStoredPositions();
           applyStoredDimensions();
+          applyIconPrimitiveStyles();
           renderNotes();
           renderResizeOverlay();
           panZoomInstance = window.svgPanZoom ? svgPanZoom(svgElement, { zoomEnabled: true, controlIconsEnabled: false, dblClickZoomEnabled: false, fit: true, center: true, minZoom: 0.2, maxZoom: 8, contain: false, viewportSelector: null, onUpdatedCTM: updateResizeOverlay }) : null;
@@ -752,6 +753,18 @@
         else { const cls = path.getAttribute('class') || ''; src = (cls.match(/\bLS-(\S+)/) || [])[1]; tgt = (cls.match(/\bLE-(\S+)/) || [])[1]; }
         if (!src || !tgt) return;
         edgeIndex.push({ path, src, tgt, hits: hits.filter(h => h.dataset.edgeFor === path.id), label: labels.length === paths.length ? labels[i] : null });
+      });
+    }
+
+    function applyIconPrimitiveStyles() {
+      Object.values(nodeIndex).forEach(n => {
+        const icon = n.foreignObject?.querySelector('[data-icon]')?.dataset.icon;
+        if (!ICON_PRIMITIVES.has(icon)) return;
+        n.shapeElements.forEach(({ element }) => {
+          element.style.setProperty('fill', 'none', 'important');
+          element.style.setProperty('stroke', 'none', 'important');
+          element.style.setProperty('pointer-events', 'none', 'important');
+        });
       });
     }
 
@@ -1682,7 +1695,7 @@
       workcell: `<path d='M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z'/><path d='M10 7h4m-7 3v4m10-4v4m-7 3h4'/>`,
       supplier: `<path d='M3 20V9l4-3v3l4-3v3l4-3v14'/><path d='M2 20h20m-7-8h2m-2 4h2'/><path d='m17 5 2-2 2 2m-2-2v5'/>`,
       customer: `<circle cx='12' cy='7' r='3'/><path d='M5 21v-2a7 7 0 0 1 14 0v2M5 12l-2 2 2 2m14-4 2 2-2 2'/>`,
-      kaizen: `<path d='M12 2v3m0 14v3M4.93 4.93l2.12 2.12m9.9 9.9 2.12 2.12M2 12h3m14 0h3M4.93 19.07l2.12-2.12m9.9-9.9 2.12-2.12'/><path d='m12 7 1.4 3.6L17 12l-3.6 1.4L12 17l-1.4-3.6L7 12l3.6-1.4z'/>`,
+      kaizen: `<path d='M12 2v3m0 14v3M4.93 4.93l2.12 2.12m9.9 9.9 2.12 2.12M2 12h3m14 0h3M4.93 19.07l2.12-2.12m9.9-9.9 2.12-2.12'/><path d='m14 4 6 6-9 9-5-5zM6 14l-3 7 7-3'/>`,
       milk_run: `<path d='M3 7h11v10H3zM14 10h4l3 3v4h-7z'/><circle cx='7' cy='18' r='2'/><circle cx='18' cy='18' r='2'/><path d='M5 10h7m-7 3h5'/>`,
       supermarket: `<path d='M3 20V9l9-6 9 6v11z'/><path d='M7 12h10M7 16h10M8 9h8'/>`,
       inspection: `<circle cx='10.5' cy='10.5' r='6.5'/><path d='m16 16 5 5m-10.5-14v7m-3.5-3.5h7'/>`,
@@ -1698,20 +1711,29 @@
       pull: `<path d='M21 7H6m4-4-4 4 4 4M21 17H6m4-4-4 4 4 4'/>`
     };
     const LEGACY_ICONS = { process_dedicated: '🏭', process_shared: '🔀', workcell: '🧩', supplier: '🏭', customer: '👑', kaizen: '💥', milk_run: '🚚', supermarket: '🏬', inspection: '🔍' };
-    function iconBadge(icon, nodeId) {
+    const ICON_PRIMITIVES = new Set(['actor', 'truck', 'plane', 'clock', 'box', 'scissors', 'kaizen', 'cloud']);
+    function iconBadge(icon, nodeId, standalone = false) {
       const paths = ICONS[icon];
       if (!paths) return '';
       const fill = normalizePickerColor(projectState.styles?.[nodeId]?.fill, '#1f2020');
       const rgb = fill.slice(1).match(/.{2}/g).map(v => parseInt(v, 16));
       const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
       const stroke = luminance > 0.55 ? '#0f172a' : '#ffffff';
-      return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='${stroke}' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='1' y='1' width='22' height='22' rx='5' fill='${fill}' stroke='${stroke}'/>${paths}</svg>`;
+      const size = standalone ? 56 : 20;
+      const background = standalone ? '' : `<rect x='1' y='1' width='22' height='22' rx='5' fill='${fill}' stroke='${stroke}'/>`;
+      return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='${size}' height='${size}' fill='none' stroke='${stroke}' stroke-width='${standalone ? 1.7 : 1.8}' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>${background}${paths}</svg>`;
+    }
+    function iconTitleLabel(icon, nodeId, title) {
+      if (ICON_PRIMITIVES.has(icon)) {
+        return `<span style='display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;white-space:nowrap'><span data-icon='${icon}' style='display:block;line-height:0'>${iconBadge(icon, nodeId, true)}</span><span style='display:block;line-height:1.2'>${title}</span></span>`;
+      }
+      return `<span class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 leading-none z-10' data-icon='${icon}'>${iconBadge(icon, nodeId)}</span>${title}</span>`;
     }
     const stripVS = s => s.replace(/\uFE0F/g, '');
 
     // RMA templates. Labels use the same icon badge + metrics pill markup as syncNodeToMermaid, so the inspector reads them back.
     const tplLabel = (m) => {
-      const badge = m.icon ? `<span class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 leading-none z-10' data-icon='${m.icon}'>${iconBadge(m.icon, m.id)}</span>${m.title}</span>` : m.title;
+      const badge = m.icon ? iconTitleLabel(m.icon, m.id, m.title) : m.title;
       const parts = [`👤 ${m.owner}`];
       if (m.ct > 0) parts.push(`⏱️ ${m.ct}m`);
       if (m.co > 0) parts.push(`🔄 ${m.co}m`);
@@ -1926,6 +1948,11 @@
       const raw = (label || '').replace(/<br\s*\/?>\s*<span[^>]*text-\[10px\][^>]*>[\s\S]*?<\/span>\s*$/i, '');
       // Icon above title: <span ...>EMOJI</span><br/>Title. Legacy form: "EMOJI Title".
       // Current form: <span class='relative…'><span class='absolute…'>EMOJI</span>Title</span>.
+      const primitive = raw.match(/^\s*<span[^>]*>\s*<span([^>]*)>([\s\S]*?)<\/span>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/span>\s*$/i);
+      if (primitive) {
+        const key = (primitive[1].match(/data-icon=['"]([\w]+)['"]/) || [])[1];
+        if (ICON_PRIMITIVES.has(key)) return cleanTitleLabel({ icon: key, text: primitive[3] });
+      }
       const badge = raw.match(/^\s*<span[^>]*\brelative\b[^>]*>\s*<span([^>]*)>([\s\S]*?)<\/span>([\s\S]*?)<\/span>\s*$/i);
       if (badge) {
         // data-icon disambiguates icons that share an emoji (e.g. Dedicated Process vs External Supplier).
@@ -2031,7 +2058,7 @@
         const cleanTitleText = (m.title || '').trim() || (defs[0] ? splitIconLabel(defs[0].label).text : '') || nodeId;
         const safeTitle = cleanTitleText.replace(/"/g, '#quot;');
         const formattedTitle = m.bold ? `<b>${safeTitle}</b>` : safeTitle.replace(/<\/?b\s*>/gi, '');
-        const fullTitle = m.icon && ICONS[m.icon] ? `<span class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 leading-none z-10' data-icon='${m.icon}'>${iconBadge(m.icon, nodeId)}</span>${formattedTitle}</span>` : formattedTitle;
+        const fullTitle = m.icon && ICONS[m.icon] ? iconTitleLabel(m.icon, nodeId, formattedTitle) : formattedTitle;
         const parts = [];
         const owner = (m.owner || '').trim().replace(/"/g, '#quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         if (owner) parts.push(`👤 ${owner}`);

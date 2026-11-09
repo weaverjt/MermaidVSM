@@ -28,9 +28,11 @@ A flowchart node is written atomically as `ID + shape open + "label" + shape clo
 <span class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 leading-none z-10' data-icon='KEY'><svg>...</svg></span>Title</span><br/><span class='block text-[10px] opacity-80 font-mono leading-tight mt-1'>👤 Owner | ⏱️ 10m | 🔄 5m | 📦 20pcs</span>
 ```
 
-* **Top-rim badge:** a vector process icon positioned over the top border. Its badge uses the node fill and selects a white stroke for dark fills or `#0f172a` for light fills.
+* **Top-rim badge:** standard process icons remain vector badges over the top border. Their badge uses the node fill and selects a white stroke for dark fills or `#0f172a` for light fills.
 * **Bottom sub-pill:** metric values, shown only for non-zero values.
 * `parseNodeDefinition` / `splitIconLabel` strip both parts so `#inspectorTitle` always holds the clean title.
+
+Actor, truck, plane, clock, box, scissors, Kaizen/sword, and cloud icons are standalone primitives: their Mermaid node geometry is transparent, the 56px vector symbol is centered, and the title is laid out beneath it. The icon key remains in `data-icon`, and the parser reads the primitive layout so title and icon edits continue to round-trip through the inspector.
 
 ### Icon map (non-redundant VSM symbols)
 Process icons deliberately avoid the metric emojis (👤 ⏱️ 🔄 📦).
