@@ -311,6 +311,16 @@
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Width (px)</label>
+              <input type="number" id="inspectorNodeWidth" min="60" step="1" oninput="updateActiveNodeDimensions()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Height (px)</label>
+              <input type="number" id="inspectorNodeHeight" min="40" step="1" oninput="updateActiveNodeDimensions()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
               <label class="block text-[11px] font-semibold text-slate-400 mb-1">Node Shape</label>
               <select id="inspectorNodeShape" onchange="updateActiveNodeFromInspector()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
                 <option value="rect">Rectangle [ ]</option>
@@ -429,12 +439,19 @@
         metrics: {}
       }
     };
-    let projectState = { title: "RMA Process Current State", mermaid: "", metrics: {}, positions: {}, notes: {}, styles: {}, settings: { autoOpenInspector: false } };
+    let projectState = { title: "RMA Process Current State", mermaid: "", metrics: {}, positions: {}, notes: {}, styles: {}, dimensions: {}, selectedNode: null, settings: { autoOpenInspector: false } };
 
     function normalizeProjectSettings() {
       if (!projectState.settings || typeof projectState.settings !== 'object' || Array.isArray(projectState.settings)) projectState.settings = {};
       if (typeof projectState.settings.autoOpenInspector !== 'boolean') projectState.settings.autoOpenInspector = false;
       if (!projectState.styles || typeof projectState.styles !== 'object' || Array.isArray(projectState.styles)) projectState.styles = {};
+      if (!projectState.dimensions || typeof projectState.dimensions !== 'object' || Array.isArray(projectState.dimensions)) projectState.dimensions = {};
+      Object.entries(projectState.dimensions).forEach(([id, d]) => {
+        const w = Number(d?.w), h = Number(d?.h);
+        if (!Number.isFinite(w) || !Number.isFinite(h)) delete projectState.dimensions[id];
+        else projectState.dimensions[id] = { w: Math.max(60, w), h: Math.max(40, h) };
+      });
+      if (typeof projectState.selectedNode !== 'string') projectState.selectedNode = null;
     }
 
     // Node drag offsets live in projectState.positions[nodeId]; older files stored them in metrics[nodeId].pos.
@@ -527,6 +544,7 @@
           projectState.positions = {};
           projectState.notes = JSON.parse(JSON.stringify(selected.notes || {}));
           projectState.styles = {};
+          projectState.dimensions = {};
           mermaidCodeInput.value = selected.mermaid;
           resetInteractionState();
           updateLineNumbers(); renderDiagram(); calculateVSMMetrics();
@@ -632,6 +650,7 @@
           injectGooeyFilter(svgElement);
           buildDiagramIndex(svgElement);
           pruneOrphanPositions();
+          pruneOrphanDimensions();
           if (pruneMetricsOnRender) pruneOrphanNotes();
           pruneOrphanMetrics();
           if (connectSourceNodeId) {
@@ -639,8 +658,10 @@
             if (src) src.classList.add('connect-source'); else disarmConnectMode();
           }
           applyStoredPositions();
+          applyStoredDimensions();
           renderNotes();
-          panZoomInstance = window.svgPanZoom ? svgPanZoom(svgElement, { zoomEnabled: true, controlIconsEnabled: false, dblClickZoomEnabled: false, fit: true, center: true, minZoom: 0.2, maxZoom: 8, contain: false, viewportSelector: null }) : null;
+          renderResizeOverlay();
+          panZoomInstance = window.svgPanZoom ? svgPanZoom(svgElement, { zoomEnabled: true, controlIconsEnabled: false, dblClickZoomEnabled: false, fit: true, center: true, minZoom: 0.2, maxZoom: 8, contain: false, viewportSelector: null, onUpdatedCTM: updateResizeOverlay }) : null;
           if (!panZoomInstance) { /* pan/zoom library unavailable: show the static diagram */ }
           else if (pan && zoom) { panZoomInstance.resize(); panZoomInstance.zoom(zoom); panZoomInstance.pan(pan); }
           else refitCanvas();
@@ -687,7 +708,16 @@
         let box;
         try { box = el.getBBox(); } catch (err) { return; }
         el.dataset.nodeKey = id;
-        nodeIndex[id] = { el, box, baseX: +t[1], baseY: +t[2], x: +t[1], y: +t[2] };
+        const shapeElements = [...el.children].filter(child => child.matches('rect, polygon, path, circle, ellipse'));
+        const labelGroup = el.querySelector(':scope > g.label');
+        const foreignObject = labelGroup?.querySelector('foreignObject') || null;
+        nodeIndex[id] = {
+          el, box, baseBox: { x: box.x, y: box.y, width: box.width, height: box.height },
+          baseWidth: Math.max(1, box.width), baseHeight: Math.max(1, box.height),
+          baseX: +t[1], baseY: +t[2], x: +t[1], y: +t[2],
+          shapeElements: shapeElements.map(element => ({ element, transform: element.getAttribute('transform') || '' })),
+          labelGroup, foreignObject
+        };
       });
       const paths = [...svg.querySelectorAll('g.edgePaths > path:not(.edge-hit)')];
       const labels = [...svg.querySelectorAll('g.edgeLabels > g.edgeLabel')];
@@ -708,6 +738,12 @@
       const pos = projectState.positions;
       if (!pos || !Object.keys(nodeIndex).length) return;
       Object.keys(pos).forEach(id => { if (!nodeIndex[id]) delete pos[id]; });
+    }
+
+    function pruneOrphanDimensions() {
+      const dimensions = projectState.dimensions;
+      if (!dimensions || !Object.keys(nodeIndex).length) return;
+      Object.keys(dimensions).forEach(id => { if (!nodeIndex[id]) delete dimensions[id]; });
     }
 
     // After a load, keeps only metrics for node IDs that exist in the rendered diagram (drops stale NewNode defaults and template leftovers).
@@ -731,6 +767,109 @@
         moved.push(id);
       });
       moved.forEach(updateNodeConnections);
+    }
+
+    function applyNodeDimensions(id, width, height) {
+      const n = nodeIndex[id];
+      if (!n) return false;
+      const w = Math.max(60, Number(width) || n.baseWidth);
+      const h = Math.max(40, Number(height) || n.baseHeight);
+      const sx = w / n.baseWidth, sy = h / n.baseHeight;
+      n.shapeElements.forEach(({ element, transform }) => {
+        element.setAttribute('transform', `scale(${sx} ${sy})${transform ? ` ${transform}` : ''}`);
+      });
+      if (n.foreignObject && n.labelGroup) {
+        const pad = 7.5;
+        n.foreignObject.setAttribute('x', '0');
+        n.foreignObject.setAttribute('y', '0');
+        n.foreignObject.setAttribute('width', String(Math.max(1, w - pad * 2)));
+        n.foreignObject.setAttribute('height', String(Math.max(1, h - pad * 2)));
+        n.labelGroup.setAttribute('transform', `translate(${-w / 2 + pad}, ${-h / 2 + pad})`);
+        const content = n.foreignObject.querySelector('div');
+        if (content) {
+          content.style.display = 'flex';
+          content.style.flexDirection = 'column';
+          content.style.alignItems = 'center';
+          content.style.justifyContent = 'center';
+          content.style.width = '100%';
+          content.style.height = '100%';
+          content.style.whiteSpace = 'normal';
+          content.style.overflow = 'hidden';
+        }
+      }
+      n.el.dataset.vsmWidth = String(w);
+      n.el.dataset.vsmHeight = String(h);
+      try { n.box = n.el.getBBox(); } catch (err) { return false; }
+      return true;
+    }
+
+    function applyStoredDimensions() {
+      Object.entries(projectState.dimensions || {}).forEach(([id, d]) => {
+        if (!applyNodeDimensions(id, d.w, d.h)) return;
+        updateNodeConnections(id);
+      });
+    }
+
+    function renderResizeOverlay() {
+      const id = projectState.selectedNode;
+      const n = id && nodeIndex[id];
+      mermaidRender.querySelector('#resizeOverlay')?.remove();
+      if (!n) return;
+      const overlay = document.createElementNS(SVG_NS, 'g');
+      overlay.id = 'resizeOverlay';
+      overlay.setAttribute('pointer-events', 'none');
+      const outline = document.createElementNS(SVG_NS, 'rect');
+      outline.setAttribute('class', 'resize-outline');
+      outline.setAttribute('fill', 'none');
+      outline.setAttribute('stroke', '#60a5fa');
+      outline.setAttribute('stroke-width', '1.5');
+      outline.setAttribute('stroke-dasharray', '4 3');
+      outline.setAttribute('pointer-events', 'none');
+      overlay.appendChild(outline);
+      ['nw', 'ne', 'se', 'sw'].forEach(corner => {
+        const handle = document.createElementNS(SVG_NS, 'rect');
+        handle.dataset.resizeCorner = corner;
+        handle.dataset.nodeId = id;
+        handle.setAttribute('class', 'resize-handle');
+        handle.setAttribute('width', '10');
+        handle.setAttribute('height', '10');
+        handle.setAttribute('rx', '1.5');
+        handle.setAttribute('fill', '#dbeafe');
+        handle.setAttribute('stroke', '#2563eb');
+        handle.setAttribute('stroke-width', '1.5');
+        handle.setAttribute('pointer-events', 'all');
+        handle.style.cursor = `${corner}-resize`;
+        overlay.appendChild(handle);
+      });
+      n.el.parentNode.appendChild(overlay);
+      updateResizeOverlay();
+    }
+
+    function updateResizeOverlay() {
+      const id = projectState.selectedNode;
+      const n = id && nodeIndex[id];
+      const overlay = mermaidRender.querySelector('#resizeOverlay');
+      if (!n || !overlay) return;
+      const { x, y, width, height } = n.box;
+      overlay.setAttribute('transform', `translate(${n.x}, ${n.y})`);
+      const outline = overlay.querySelector('.resize-outline');
+      outline.setAttribute('x', String(x));
+      outline.setAttribute('y', String(y));
+      outline.setAttribute('width', String(width));
+      outline.setAttribute('height', String(height));
+      const corners = {
+        nw: [x, y], ne: [x + width, y], se: [x + width, y + height], sw: [x, y + height]
+      };
+      const ctm = n.el.parentNode.getScreenCTM();
+      const scale = ctm ? Math.hypot(ctm.a, ctm.b) : 1;
+      const handleSize = 12 / (scale || 1);
+      overlay.querySelectorAll('.resize-handle').forEach(handle => {
+        const [cx, cy] = corners[handle.dataset.resizeCorner];
+        handle.setAttribute('width', String(handleSize));
+        handle.setAttribute('height', String(handleSize));
+        handle.setAttribute('x', String(cx - handleSize / 2));
+        handle.setAttribute('y', String(cy - handleSize / 2));
+      });
     }
 
     function nodeBounds(id) {
@@ -802,6 +941,8 @@
     function startNodeDrag(e) {
       dragMoved = false;
       if (e.pointerType === 'mouse' ? e.button !== 0 : !e.isPrimary) return;
+      const resizeHandle = e.target.closest?.('.resize-handle');
+      if (resizeHandle) { startNodeResize(e, resizeHandle); return; }
       const noteEl = e.target.closest?.('g.process-note');
       if (noteEl) { startNoteDrag(e, noteEl); return; }
       const id = cleanNodeId(e.target);
@@ -811,6 +952,27 @@
       const p = svgPointFor(el.parentNode, e);
       if (!p) return;
       drag = { id, el, n: nodeIndex[id], parent: el.parentNode, start: p, x0: nodeIndex[id].x, y0: nodeIndex[id].y, sx: e.clientX, sy: e.clientY, active: false, pointerId: e.pointerId };
+      if (panZoomInstance) panZoomInstance.disablePan();
+      window.addEventListener('pointermove', onNodeDragMove);
+      window.addEventListener('pointerup', endNodeDrag);
+      window.addEventListener('pointercancel', endNodeDrag);
+      window.addEventListener('pointerdown', onExtraPointerDown, true);
+    }
+
+    function startNodeResize(e, handle) {
+      const id = handle.dataset.nodeId, n = nodeIndex[id];
+      if (!n) return;
+      const p = svgPointFor(n.el.parentNode, e);
+      if (!p) return;
+      const size = projectState.dimensions?.[id] || { w: Math.max(60, n.baseWidth), h: Math.max(40, n.baseHeight) };
+      e.preventDefault();
+      e.stopPropagation();
+      drag = {
+        kind: 'resize', id, n, el: handle, parent: n.el.parentNode, start: p,
+        sx: e.clientX, sy: e.clientY, active: false, pointerId: e.pointerId,
+        corner: handle.dataset.resizeCorner, w0: size.w, h0: size.h, x0: n.x, y0: n.y
+      };
+      try { handle.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
       if (panZoomInstance) panZoomInstance.disablePan();
       window.addEventListener('pointermove', onNodeDragMove);
       window.addEventListener('pointerup', endNodeDrag);
@@ -848,6 +1010,31 @@
         placeNote(drag.id);
         return;
       }
+      if (drag.kind === 'resize') {
+        const dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+        const east = drag.corner.endsWith('e'), south = drag.corner.startsWith('s');
+        const width = Math.max(60, drag.w0 + (east ? dx : -dx));
+        const height = Math.max(40, drag.h0 + (south ? dy : -dy));
+        drag.n.x = drag.x0 + (east ? 1 : -1) * (width - drag.w0) / 2;
+        drag.n.y = drag.y0 + (south ? 1 : -1) * (height - drag.h0) / 2;
+        drag.n.el.setAttribute('transform', `translate(${drag.n.x}, ${drag.n.y})`);
+        projectState.dimensions = projectState.dimensions || {};
+        projectState.dimensions[drag.id] = { w: width, h: height };
+        applyNodeDimensions(drag.id, width, height);
+        projectState.positions = projectState.positions || {};
+        projectState.positions[drag.id] = {
+          x: Math.round((drag.n.x - drag.n.baseX) * 10) / 10,
+          y: Math.round((drag.n.y - drag.n.baseY) * 10) / 10
+        };
+        updateNodeConnections(drag.id);
+        updateNotesForNode(drag.id);
+        updateResizeOverlay();
+        if (projectState.selectedNode === drag.id) {
+          document.getElementById('inspectorNodeWidth').value = String(Math.round(width));
+          document.getElementById('inspectorNodeHeight').value = String(Math.round(height));
+        }
+        return;
+      }
       const n = drag.n;
       n.x = drag.x0 + (p.x - drag.start.x); n.y = drag.y0 + (p.y - drag.start.y);
       n.el.setAttribute('transform', `translate(${n.x}, ${n.y})`);
@@ -864,7 +1051,7 @@
       if (drag.active && drag.kind === 'note') {
         const note = projectState.notes?.[drag.id];
         if (note) note.offset = { x: Math.round(note.offset.x), y: Math.round(note.offset.y) };
-      } else if (drag.active) {
+      } else if (drag.active && drag.kind !== 'resize') {
         projectState.positions = projectState.positions || {};
         const pos = { x: Math.round((drag.n.x - drag.n.baseX) * 10) / 10, y: Math.round((drag.n.y - drag.n.baseY) * 10) / 10 };
         if (pos.x || pos.y) projectState.positions[drag.id] = pos; else delete projectState.positions[drag.id];
@@ -1028,7 +1215,7 @@
     function openNoteEditor(id) {
       const note = projectState.notes?.[id];
       if (!note) return;
-      activeNodeId = null; activeEdge = null;
+      activeNodeId = null; activeEdge = null; projectState.selectedNode = null; renderResizeOverlay();
       activeNoteId = id;
       renderNotes(); setActiveNote(id);
       document.getElementById('inspectorNoteTarget').value = note.targetId;
@@ -1223,7 +1410,7 @@
       const next = edgeRef ? deleteEdgeFromCode(code, kind, edgeRef) : deleteNodeFromCode(code, kind, nodeId);
       if (next === null || next === code) { updateStatus('Nothing to delete for this selection (subgraphs are not deletable)', 'amber'); return; }
       mermaidCodeInput.value = projectState.mermaid = next;
-      if (nodeId) { delete projectState.metrics[nodeId]; if (projectState.positions) delete projectState.positions[nodeId]; if (projectState.styles) delete projectState.styles[nodeId]; Object.entries(projectState.notes || {}).forEach(([k, n]) => { if (n.targetId === nodeId) delete projectState.notes[k]; }); }
+      if (nodeId) { delete projectState.metrics[nodeId]; if (projectState.positions) delete projectState.positions[nodeId]; if (projectState.styles) delete projectState.styles[nodeId]; if (projectState.dimensions) delete projectState.dimensions[nodeId]; Object.entries(projectState.notes || {}).forEach(([k, n]) => { if (n.targetId === nodeId) delete projectState.notes[k]; }); }
       if (edgeRef && projectState.edges) delete projectState.edges[edgeKey(edgeRef)];
       closeInspector();
       updateLineNumbers(); calculateVSMMetrics();
@@ -1233,6 +1420,7 @@
     function openInspector(nodeId) {
       activeEdge = null; setActiveNote(null);
       activeNodeId = nodeId; document.getElementById('inspectorNodeId').value = nodeId;
+      projectState.selectedNode = nodeId;
       if (!projectState.metrics[nodeId]) { projectState.metrics[nodeId] = { title: nodeId, owner: '', ct: 0, co: 0, wip: 0, friction: false }; }
       const m = projectState.metrics[nodeId];
       const code = mermaidCodeInput.value, kind = diagramKind(code);
@@ -1252,6 +1440,14 @@
       const colors = getNodeColors(nodeId);
       document.getElementById('inspectorFillColor').value = colors.fill;
       document.getElementById('inspectorStrokeColor').value = colors.stroke;
+      const dimensionInputs = ['inspectorNodeWidth', 'inspectorNodeHeight'];
+      dimensionInputs.forEach(id => { document.getElementById(id).disabled = !isFlowchart || !!sub || !nodeIndex[nodeId]; });
+      const dimensions = projectState.dimensions?.[nodeId] || {
+        w: Math.max(60, nodeIndex[nodeId]?.baseWidth || 60),
+        h: Math.max(40, nodeIndex[nodeId]?.baseHeight || 40)
+      };
+      document.getElementById('inspectorNodeWidth').value = String(Math.round(dimensions.w));
+      document.getElementById('inspectorNodeHeight').value = String(Math.round(dimensions.h));
       const shapeSel = document.getElementById('inspectorNodeShape'), iconSel = document.getElementById('inspectorNodeIcon');
       shapeSel.value = m.shape; iconSel.value = m.icon;
       shapeSel.disabled = iconSel.disabled = !isFlowchart || !!sub;
@@ -1263,6 +1459,7 @@
       document.getElementById('inspectorFriction').checked = !!m.friction;
       switchInspectorTab('node');
       showInspectorDrawer();
+      renderResizeOverlay();
     }
 
     // ---- Connect Nodes tool ----
@@ -1328,7 +1525,7 @@
     }
     function toggleInspectorCollapsed() { setInspectorCollapsed(!inspectorDrawer.classList.contains('inspector-collapsed')); }
 
-    function closeInspector() { inspectorDrawer.classList.add('hidden'); setInspectorCollapsed(false); activeNodeId = null; activeEdge = null; setActiveNote(null); }
+    function closeInspector() { inspectorDrawer.classList.add('hidden'); setInspectorCollapsed(false); activeNodeId = null; activeEdge = null; projectState.selectedNode = null; setActiveNote(null); renderResizeOverlay(); }
 
     function switchInspectorTab(tab) {
       if (mobileMQ.matches) { setEditorCollapsed(true); setLibraryCollapsed(true); }
@@ -1359,6 +1556,22 @@
       };
       syncNodeToMermaid(activeNodeId, projectState.metrics[activeNodeId]);
       calculateVSMMetrics();
+    }
+
+    function updateActiveNodeDimensions() {
+      if (!activeNodeId || !nodeIndex[activeNodeId]) return;
+      const widthInput = document.getElementById('inspectorNodeWidth');
+      const heightInput = document.getElementById('inspectorNodeHeight');
+      const width = Math.max(60, Number(widthInput.value) || 60);
+      const height = Math.max(40, Number(heightInput.value) || 40);
+      widthInput.value = String(Math.round(width));
+      heightInput.value = String(Math.round(height));
+      projectState.dimensions = projectState.dimensions || {};
+      projectState.dimensions[activeNodeId] = { w: width, h: height };
+      if (!applyNodeDimensions(activeNodeId, width, height)) return;
+      updateNodeConnections(activeNodeId);
+      updateNotesForNode(activeNodeId);
+      updateResizeOverlay();
     }
 
     function normalizePickerColor(value, fallback) {
@@ -1624,7 +1837,7 @@
     }
 
     function showEdgeInspector(edge) {
-      activeNodeId = null; setActiveNote(null);
+      activeNodeId = null; projectState.selectedNode = null; renderResizeOverlay(); setActiveNote(null);
       activeEdge = { kind: edge.kind || 'flow', src: edge.src, tgt: edge.tgt, idx: edge.idx, ord: edge.ord };
       document.getElementById('inspectorEdgeId').value = edgeKey(edge);
       document.getElementById('inspectorEdgeLabel').value = edge.label;
@@ -1950,7 +2163,7 @@
               mermaidCodeInput.value = parsed.mermaid;
             }
           } catch(err) { alert('Invalid project JSON file.'); }
-        } else { projectState.mermaid = content; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; mermaidCodeInput.value = content; }
+        } else { projectState.mermaid = content; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; mermaidCodeInput.value = content; }
         resetInteractionState();
         updateLineNumbers(); renderDiagram(); calculateVSMMetrics();
       };
@@ -2099,7 +2312,7 @@
     function zoomIn() { if (panZoomInstance) panZoomInstance.zoomIn(); }
     function zoomOut() { if (panZoomInstance) panZoomInstance.zoomOut(); }
     function resetZoom() { if (panZoomInstance) { panZoomInstance.resetZoom(); panZoomInstance.fit(); panZoomInstance.center(); } }
-    function clearCode() { mermaidCodeInput.value = ''; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.metrics = {}; resetInteractionState(); updateLineNumbers(); renderDiagram(); calculateVSMMetrics(); }
+    function clearCode() { mermaidCodeInput.value = ''; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; projectState.metrics = {}; resetInteractionState(); updateLineNumbers(); renderDiagram(); calculateVSMMetrics(); }
     function formatCode() { mermaidCodeInput.value = mermaidCodeInput.value.split('\n').map(l => l.trimEnd()).join('\n'); updateLineNumbers(); }
     const EXPORT_STYLE_PROPS = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color', 'text-anchor', 'dominant-baseline', 'text-align', 'line-height', 'display', 'padding', 'white-space', 'overflow', 'visibility', 'filter'];
     function exportBaseName() {
@@ -2153,7 +2366,7 @@
         dst.setAttribute('style', css);
       });
       addForeignObjectTextFallback(svg, clone);
-      clone.querySelectorAll('.edge-hit, .anchor-socket, .note-sel, [id^="gooey"]').forEach(el => el.remove());
+      clone.querySelectorAll('.edge-hit, .anchor-socket, .note-sel, #resizeOverlay, [id^="gooey"]').forEach(el => el.remove());
       const vp = clone.querySelector('g.svg-pan-zoom_viewport');
       if (vp) vp.removeAttribute('transform'), vp.removeAttribute('style');
       clone.querySelectorAll('.svg-pan-zoom-control').forEach(el => el.remove());
