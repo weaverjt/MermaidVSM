@@ -81,7 +81,7 @@
     @media (max-height: 700px) { #editorBody { height: 200px; } }
     /* 44px touch targets (phones and any coarse pointer). Connector hit paths use a screen-space stroke so they stay 44px wide at any zoom. */
     @media (pointer: coarse), (max-width: 767px) {
-      header button, header select, header label, #saveMenu button, #objectLibrary button, #editorPanel button, #zoomControls button { min-height: 44px; }
+      header button, header select, header label, #saveMenu button, #objectLibrary button, #objectLibrary summary, #editorPanel button, #zoomControls button { min-height: 44px; }
       #zoomControls button, #editorPanel button { min-width: 44px; }
       #inspectorDrawer button, #inspectorDrawer select, #inspectorDrawer input:not([type="checkbox"]) { min-height: 44px; }
       #mermaidRender .edge-hit { vector-effect: non-scaling-stroke; stroke-width: 44px !important; }
@@ -106,6 +106,7 @@
       #inspectorDrawer { max-height: min(72%, 560px); }
       #editorPanel { max-height: min(70%, 420px); }
       #libraryBody { display: grid; grid-template-columns: 1fr 1fr; gap: 0.375rem; }
+      #wandControls { grid-column: 1 / -1; }
       #objectLibrary.lib-collapsed, #editorPanel.editor-collapsed, #inspectorDrawer.sheet-yield { display: none; }
       #editorHeader { height: auto; min-height: 44px; flex-wrap: wrap; gap: 0.25rem; }
       #editorToggleBtn { display: none; }
@@ -207,50 +208,57 @@
           <button id="libraryToggleBtn" aria-expanded="true" title="Collapse / expand library" class="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-800 hover:text-slate-200 text-sm leading-none normal-case">−</button>
         </div>
         <div id="libraryBody" class="flex flex-col gap-1.5">
+        <div id="wandControls" class="grid grid-cols-2 gap-1">
+          <button id="btnConnectNodes" onclick="toggleConnectMode()" aria-pressed="false" title="Chain connections; press Esc or click the canvas background to stop" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">🪄 Connect Wand</button>
+          <button id="btnDisconnectNodes" onclick="toggleDisconnectMode()" aria-pressed="false" title="Remove connections; press Esc or click the canvas background to stop" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">✂️ Disconnect Wand</button>
+        </div>
         <details open class="border-b border-slate-800 pb-1">
-          <summary class="cursor-pointer select-none px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Basic Shapes</summary>
+          <summary class="cursor-pointer select-none px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">🏢 Process &amp; Inventory</summary>
           <div class="mt-1 grid grid-cols-2 gap-1">
-            <button onclick="addLibraryNode('process')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Rectangle</button>
-            <button onclick="addLibraryNode('decision')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Diamond</button>
-            <button onclick="addLibraryNode('shape-rounded')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Rounded</button>
-            <button onclick="addLibraryNode('shape-circle')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Circle</button>
-            <button onclick="addLibraryNode('shape-triangle')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Triangle</button>
-            <button onclick="addLibraryNode('shape-hexagon')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Hexagon</button>
-            <button onclick="addLibraryNode('shape-cylinder')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Cylinder</button>
+            <button onclick="addLibraryNode('dedicated-process')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Dedicated Process</button>
+            <button onclick="addLibraryNode('shared-process')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Shared Process</button>
+            <button onclick="addLibraryNode('workcell')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Workcell</button>
+            <button onclick="addLibraryNode('supermarket')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Supermarket</button>
             <button onclick="addLibraryNode('buffer')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Buffer / WIP</button>
+            <button onclick="addLibraryNode('box')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Inventory Box</button>
           </div>
         </details>
         <details class="border-b border-slate-800 pb-1">
-          <summary class="cursor-pointer select-none px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Double-Line Shapes</summary>
+          <summary class="cursor-pointer select-none px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">🚚 Material &amp; Info Flow</summary>
           <div class="mt-1 grid grid-cols-2 gap-1">
-            <button onclick="addLibraryNode('double-rect')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Rectangle</button>
-            <button onclick="addLibraryNode('double-diamond')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Diamond</button>
-            <button onclick="addLibraryNode('double-rounded')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Rounded</button>
-            <button onclick="addLibraryNode('double-circle')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Circle</button>
-            <button onclick="addLibraryNode('double-triangle')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Triangle</button>
-            <button onclick="addLibraryNode('double-hexagon')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Hexagon</button>
-            <button onclick="addLibraryNode('double-cylinder')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Cylinder</button>
-          </div>
-        </details>
-        <details class="border-b border-slate-800 pb-1">
-          <summary class="cursor-pointer select-none px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Process Symbols</summary>
-          <div class="mt-1 grid grid-cols-2 gap-1">
-            <button onclick="addLibraryNode('actor')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Operator</button>
-            <button onclick="addLibraryNode('kaizen')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Kaizen / Sword</button>
-            <button onclick="addLibraryNode('scissors')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Cutoff</button>
+            <button onclick="addLibraryNode('push')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Push Flow</button>
+            <button onclick="addLibraryNode('pull')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Pull Flow</button>
+            <button onclick="addLibraryNode('document')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">SOP / Traveler</button>
             <button onclick="addLibraryNode('cloud')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">ERP / Cloud</button>
             <button onclick="addLibraryNode('truck')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Ground Freight</button>
             <button onclick="addLibraryNode('plane')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Air Freight</button>
-            <button onclick="addLibraryNode('document')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">SOP / Traveler</button>
-            <button onclick="addLibraryNode('clock')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Wait / Clock</button>
-            <button onclick="addLibraryNode('box')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Inventory</button>
-            <button onclick="addLibraryNode('push')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Push Flow</button>
-            <button onclick="addLibraryNode('pull')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Pull Flow</button>
+            <button onclick="addLibraryNode('milk-run')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Milk Run</button>
           </div>
         </details>
-        <button id="btnConnectNodes" onclick="toggleConnectMode()" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">🔗 Connect Nodes</button>
-        <button id="btnAddNote" onclick="addNote()" title="Attach a note to the selected node" class="text-left px-2.5 py-1.5 bg-yellow-950/50 hover:bg-yellow-900/60 border border-yellow-700/50 rounded-md text-xs text-yellow-200 transition">📝 Add Note</button>
-        <button onclick="deleteSelected()" class="text-left px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-800/60 rounded-md text-xs text-rose-200 transition">🗑️ Delete Selected</button>
+        <details class="border-b border-slate-800 pb-1">
+          <summary class="cursor-pointer select-none px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">⚡ Actors &amp; Events</summary>
+          <div class="mt-1 grid grid-cols-2 gap-1">
+            <button onclick="addLibraryNode('actor')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Human Operator</button>
+            <button onclick="addLibraryNode('kaizen')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Kaizen Event</button>
+            <button onclick="addLibraryNode('clock')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Wait State / Clock</button>
+            <button onclick="addLibraryNode('scissors')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Cutoff / Scissors</button>
+            <button onclick="addLibraryNode('inspection')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Quality Inspection</button>
+            <button onclick="addLibraryNode('supplier')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">External Supplier</button>
+            <button onclick="addLibraryNode('customer')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Customer / Person</button>
+          </div>
+        </details>
+        <details class="border-b border-slate-800 pb-1">
+          <summary class="cursor-pointer select-none px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">📐 Basic Geometry</summary>
+          <div class="mt-1 grid grid-cols-2 gap-1">
+            <button onclick="addLibraryNode('process')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Rectangle</button>
+            <button onclick="addLibraryNode('shape-rounded')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Rounded</button>
+            <button onclick="addLibraryNode('shape-circle')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Circle</button>
+            <button onclick="addLibraryNode('decision')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Diamond</button>
+            <button onclick="addLibraryNode('shape-triangle')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Triangle</button>
+            <button onclick="addLibraryNode('shape-hexagon')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Hexagon</button>
+            <button onclick="addLibraryNode('shape-cylinder')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Cylinder</button>
+          </div>
+        </details>
         </div>
       </div>
       <div id="zoomControls" class="absolute right-3 flex items-center bg-slate-900/90 border border-slate-800 rounded-lg p-1 space-x-1 z-20 backdrop-blur-sm shadow-md">
@@ -321,6 +329,7 @@
             </select>
           </div>
           <p id="inspectorEdgeNote" class="hidden text-[11px] text-amber-300"></p>
+          <button onclick="deleteSelected()" class="w-full px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-800/60 rounded-md text-rose-200 transition">🗑️ Delete Selected</button>
         </div>
         <div id="nodeInspectorPanel" class="inspector-body overflow-y-auto flex-1 text-xs">
           <div>
@@ -361,10 +370,10 @@
               <input type="number" id="inspectorNodeHeight" min="40" step="1" oninput="updateActiveNodeDimensions()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500">
             </div>
           </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
+          <div>
               <label class="block text-[11px] font-semibold text-slate-400 mb-1">Node Shape</label>
-              <select id="inspectorNodeShape" onchange="updateActiveNodeFromInspector()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
+              <select id="inspectorNodeShape" onchange="updateActiveNodeFromInspector(true)" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
+                <optgroup label="Basic Containers">
                 <option value="rect">Rectangle [ ]</option>
                 <option value="rounded">Rounded Corners ( )</option>
                 <option value="stadium">Stadium / Pill ([ ])</option>
@@ -376,33 +385,29 @@
                 <option value="circle">Circle (( ))</option>
                 <option value="triangle">Triangle</option>
                 <option value="custom" disabled hidden>Custom (keep existing)</option>
+                </optgroup>
+                <optgroup label="VSM Shapes">
+                  <option value="icon:process_dedicated">Dedicated Process</option>
+                  <option value="icon:process_shared">Shared Process</option>
+                  <option value="icon:workcell">Workcell</option>
+                  <option value="icon:supermarket">Supermarket</option>
+                  <option value="icon:inspection">Quality Inspection</option>
+                  <option value="icon:supplier">External Supplier</option>
+                  <option value="icon:customer">Customer / Person</option>
+                  <option value="icon:milk_run">Milk Run</option>
+                  <option value="icon:actor">Human Operator</option>
+                  <option value="icon:kaizen">Kaizen Event</option>
+                  <option value="icon:scissors">Cutoff / Scissors</option>
+                  <option value="icon:cloud">ERP / Cloud</option>
+                  <option value="icon:truck">Ground Freight</option>
+                  <option value="icon:plane">Air Freight</option>
+                  <option value="icon:document">SOP / Traveler</option>
+                  <option value="icon:clock">Wait State / Clock</option>
+                  <option value="icon:box">Inventory Box</option>
+                  <option value="icon:push">Push Flow</option>
+                  <option value="icon:pull">Pull Flow</option>
+                </optgroup>
               </select>
-            </div>
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Attach Icon</label>
-              <select id="inspectorNodeIcon" onchange="updateActiveNodeFromInspector()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
-                <option value="">No Process Icon</option>
-                <option value="process_dedicated">Dedicated Process (Factory)</option>
-                <option value="process_shared">Shared Process (Shared Paths)</option>
-                <option value="workcell">Workcell (Grid)</option>
-                <option value="supplier">External Supplier (Inbound)</option>
-                <option value="customer">Customer / Recipient (Person)</option>
-                <option value="kaizen">Kaizen Burst</option>
-                <option value="milk_run">Milk Run / Transport (Truck)</option>
-                <option value="supermarket">Supermarket / Storage (Shelves)</option>
-                <option value="inspection">Go-See / Quality Inspection</option>
-                <option value="actor">Human Operator</option>
-                <option value="scissors">Cutoff / Scissors</option>
-                <option value="cloud">ERP / External System</option>
-                <option value="truck">Ground Freight</option>
-                <option value="plane">Air Freight</option>
-                <option value="document">SOP / Traveler</option>
-                <option value="clock">Lead-Time Wait</option>
-                <option value="box">Inventory Package</option>
-                <option value="push">Push Flow</option>
-                <option value="pull">Pull Flow</option>
-              </select>
-            </div>
           </div>
           <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
             <input type="checkbox" id="inspectorDoubleBorder" onchange="updateActiveNodeFromInspector()" class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500">
@@ -435,6 +440,7 @@
               <span class="text-xs font-semibold text-rose-300">Flag as Friction / Bottleneck Point</span>
             </label>
           </div>
+          <button onclick="deleteSelected()" class="w-full px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-800/60 rounded-md text-rose-200 transition">🗑️ Delete Selected</button>
         </div>
       </aside>
       <div id="vsmSummaryLadder" class="absolute bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800 p-2.5 backdrop-blur-md z-20">
@@ -542,8 +548,8 @@
     // Switching projects must not leave an inspector or connect session pointing at the previous diagram.
     // Loading new content (template, file, URL, Clear) also schedules a metrics cleanup for the next render.
     let pruneMetricsOnRender = false, activeNoteId = null;
-    function resetInteractionState() { pruneMetricsOnRender = true; closeInspector(); if (connectArmed || connectSourceNodeId) disarmConnectMode(); }
-    let panZoomInstance = null, renderTimeout = null, activeNodeId = null, activeEdge = null;
+    function resetInteractionState() { pendingConnectionPositions = null; clearTimeout(renderTimeout); pruneMetricsOnRender = true; closeInspector(); if (connectArmed || disconnectArmed) disarmWands(); }
+    let panZoomInstance = null, renderTimeout = null, renderSequence = 0, activeNodeId = null, activeEdge = null;
     const mermaidCodeInput = document.getElementById('mermaidCode');
     const mermaidRender = document.getElementById('mermaidRender');
     const errorBanner = document.getElementById('errorBanner');
@@ -565,11 +571,24 @@
       dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('bg-blue-950/20'); });
       dropZone.addEventListener('dragleave', () => dropZone.classList.remove('bg-blue-950/20'));
       dropZone.addEventListener('drop', handleFileDrop);
+      document.getElementById('canvasContainer').addEventListener('pointerdown', e => {
+        if (!(connectArmed || disconnectArmed) || (e.pointerType === 'mouse' ? e.button !== 0 : !e.isPrimary)) return;
+        if (e.target.closest?.('.node, g.nodes > g, .edgePath, .edgeLabel, g.edgePaths, g.edgeLabels, .edge-hit, g.process-note, g.cluster, .resize-handle')) return;
+        disarmWands();
+        updateStatus('Wand mode cancelled', 'emerald');
+      }, true);
       mermaidRender.addEventListener('pointerdown', startNodeDrag, true);
       mermaidRender.addEventListener('click', (e) => {
         if (dragMoved) { dragMoved = false; return; }
         const noteEl = e.target.closest('g.process-note');
-        if (noteEl && !connectArmed) { openNoteEditor(noteEl.dataset.noteId); return; }
+        if (noteEl && !connectArmed && !disconnectArmed) { openNoteEditor(noteEl.dataset.noteId); return; }
+        if (disconnectArmed) {
+          const nodeEl = e.target.closest('.node, g.nodes > g');
+          const edgeEl = e.target.closest('.edgePath, .edgeLabel, g.edgePaths path, g.edgeLabels');
+          if (nodeEl) handleDisconnectNode(nodeEl);
+          else if (edgeEl) handleDisconnectEdge(edgeEl);
+          return;
+        }
         if (connectArmed) {
           const nodeEl = e.target.closest('.node, g.nodes > g');
           if (nodeEl) handleConnectClick(nodeEl);
@@ -680,6 +699,8 @@
 
     function debouncedRender() { clearTimeout(renderTimeout); renderTimeout = setTimeout(renderDiagram, 200); }
     async function renderDiagram() {
+      clearTimeout(renderTimeout);
+      const sequence = ++renderSequence;
       const code = mermaidCodeInput.value.trim();
       if (!code) {
         if (panZoomInstance) { panZoomInstance.destroy(); panZoomInstance = null; }
@@ -692,9 +713,10 @@
       try {
         if (!window.mermaid) throw new Error('Mermaid library did not load (CDN blocked?). Use the bundled build for restricted networks.');
         await mermaid.parse(code);
-        mermaidRender.innerHTML = '';
+        if (sequence !== renderSequence || code !== mermaidCodeInput.value.trim()) return;
         const id = 'mermaid-svg-' + Date.now();
-        const { svg } = await mermaid.render(id, code);
+        const { svg } = await mermaid.render(id, standaloneRenderCode(code));
+        if (sequence !== renderSequence || code !== mermaidCodeInput.value.trim()) return;
         mermaidRender.innerHTML = svg;
         dismissError(); updateStatus('Rendered', 'emerald');
         const svgElement = mermaidRender.querySelector('svg');
@@ -711,13 +733,18 @@
           pruneOrphanDimensions();
           if (pruneMetricsOnRender) pruneOrphanNotes();
           pruneOrphanMetrics();
-          if (connectSourceNodeId) {
-            const src = [...svgElement.querySelectorAll('g.node')].find(n => n.id.replace(/^flowchart-/, '').replace(/-\d+$/, '') === connectSourceNodeId);
-            if (src) src.classList.add('connect-source'); else disarmConnectMode();
+          const wandSource = connectArmed ? connectSourceNodeId : disconnectSourceNodeId;
+          if (wandSource) {
+            const src = [...svgElement.querySelectorAll('g.node')].find(n => n.id.replace(/^flowchart-/, '').replace(/-\d+$/, '') === wandSource);
+            if (src) src.classList.add('connect-source'); else { connectSourceNodeId = null; disconnectSourceNodeId = null; }
           }
           applyStoredPositions();
           applyStoredDimensions();
           applyIconPrimitiveStyles();
+          edgeIndex.forEach(e => {
+            if (pendingConnectionPositions || [e.src, e.tgt].some(id => nodeIndex[id]?.foreignObject?.querySelector('[data-icon]') || parseNodeDefinition(code, id)?.shape === 'triangle')) routeEdge(e);
+          });
+          pendingConnectionPositions = null;
           renderNotes();
           renderResizeOverlay();
           panZoomInstance = window.svgPanZoom ? svgPanZoom(svgElement, { zoomEnabled: true, controlIconsEnabled: false, dblClickZoomEnabled: false, fit: true, center: true, minZoom: 0.2, maxZoom: 8, contain: false, viewportSelector: null, onUpdatedCTM: updateResizeOverlay }) : null;
@@ -727,13 +754,34 @@
         }
         const nodes = (code.match(/\[.*?\]|\(.*?\)|/g) || []).length;
         document.getElementById('nodeCount').textContent = `Nodes: ~${Math.floor(nodes / 2)}`;
-      } catch (err) { showError(err.str || err.message || 'Syntax Error encountered.'); updateStatus('Syntax Error', 'rose'); }
+        if (connectArmed) updateStatus(connectSourceNodeId ? `Source ${connectSourceNodeId} selected: click the next target, or press Esc to stop` : 'Connect mode: click the source node', 'emerald');
+        else if (disconnectArmed) updateStatus(disconnectSourceNodeId ? `Node ${disconnectSourceNodeId} selected: click another node or a connection` : 'Disconnect mode: click a connection or two nodes', 'emerald');
+      } catch (err) { if (sequence === renderSequence) { showError(err.str || err.message || 'Syntax Error encountered.'); updateStatus('Syntax Error', 'rose'); } }
     }
 
     // ---- Phase 7: node dragging, elastic connector routing, gooey anchors ----
     const SVG_NS = 'http://www.w3.org/2000/svg';
     const TRANSLATE_RE = /translate\(\s*(-?[\d.eE+-]+)[\s,]+(-?[\d.eE+-]+)\s*\)/;
     let nodeIndex = {}, edgeIndex = [], drag = null, dragMoved = false, socketLayer = null;
+    let pendingConnectionPositions = null;
+
+    function diagramCoordinateRoot() {
+      const svg = mermaidRender.querySelector('svg');
+      return svg?.querySelector(':scope > .svg-pan-zoom_viewport') || svg;
+    }
+
+    function preserveConnectionPositions() {
+      if (pendingConnectionPositions) return;
+      const rootMatrix = diagramCoordinateRoot()?.getCTM();
+      if (!rootMatrix) return;
+      const inverse = rootMatrix.inverse();
+      pendingConnectionPositions = Object.fromEntries(Object.entries(nodeIndex).flatMap(([id, n]) => {
+        const matrix = n.el.getCTM();
+        if (!matrix) return [];
+        const point = new DOMPoint(0, 0).matrixTransform(inverse.multiply(matrix));
+        return [[id, { x: point.x, y: point.y }]];
+      }));
+    }
 
     function ensureMetrics(id) {
       projectState.metrics = projectState.metrics || {};
@@ -864,6 +912,14 @@
     function applyStoredPositions() {
       const moved = [];
       Object.entries(nodeIndex).forEach(([id, n]) => {
+        const preserved = pendingConnectionPositions?.[id];
+        if (preserved) {
+          const rootMatrix = diagramCoordinateRoot()?.getCTM(), parentMatrix = n.el.parentNode.getCTM();
+          if (rootMatrix && parentMatrix) {
+            const point = new DOMPoint(preserved.x, preserved.y).matrixTransform(parentMatrix.inverse().multiply(rootMatrix));
+            projectState.positions[id] = { x: point.x - n.baseX, y: point.y - n.baseY };
+          }
+        }
         const pos = projectState.positions?.[id];
         if (!pos) return;
         n.x = n.baseX + (Number(pos.x) || 0); n.y = n.baseY + (Number(pos.y) || 0);
@@ -879,11 +935,12 @@
       const w = Math.max(60, Number(width) || n.baseWidth);
       const h = Math.max(40, Number(height) || n.baseHeight);
       const sx = w / n.baseWidth, sy = h / n.baseHeight;
+      const baseCenterX = n.baseBox.x + n.baseWidth / 2, baseCenterY = n.baseBox.y + n.baseHeight / 2;
       n.shapeElements.forEach(({ element, transform }) => {
-        element.setAttribute('transform', `scale(${sx} ${sy})${transform ? ` ${transform}` : ''}`);
+        element.setAttribute('transform', `scale(${sx} ${sy}) translate(${-baseCenterX} ${-baseCenterY})${transform ? ` ${transform}` : ''}`);
       });
       if (n.foreignObject && n.labelGroup) {
-        const pad = 7.5;
+        const pad = n.foreignObject.querySelector('[data-icon] svg') ? 2 : 7.5;
         n.foreignObject.setAttribute('x', '0');
         n.foreignObject.setAttribute('y', '0');
         n.foreignObject.setAttribute('width', String(Math.max(1, w - pad * 2)));
@@ -899,6 +956,18 @@
           content.style.height = '100%';
           content.style.whiteSpace = 'normal';
           content.style.overflow = 'hidden';
+          const iconContainer = content.querySelector('[data-icon]');
+          const icon = iconContainer?.querySelector('svg');
+          if (icon && ICON_PRIMITIVES.has(iconContainer.dataset.icon)) {
+            icon.setAttribute('width', '56');
+            icon.setAttribute('height', '56');
+            content.style.height = 'auto';
+            const textHeight = content.scrollHeight - 56;
+            content.style.height = '100%';
+            const size = Math.max(1, Math.min(w - pad * 2, h - pad * 2 - textHeight));
+            icon.setAttribute('width', String(size));
+            icon.setAttribute('height', String(size));
+          }
         }
       }
       n.el.dataset.vsmWidth = String(w);
@@ -976,32 +1045,87 @@
       });
     }
 
-    function nodeBounds(id) {
+    function nodeBounds(id, parent) {
       const n = nodeIndex[id];
       if (!n) return null;
-      return { cx: n.x + n.box.x + n.box.width / 2, cy: n.y + n.box.y + n.box.height / 2, hw: n.box.width / 2, hh: n.box.height / 2 };
+      const parentMatrix = parent.getScreenCTM(), nodeMatrix = n.el.getScreenCTM();
+      if (!parentMatrix || !nodeMatrix) return null;
+      let m = parentMatrix.inverse().multiply(nodeMatrix);
+      let box = n.box;
+      let shape = null;
+      const icon = n.foreignObject?.querySelector('[data-icon] svg');
+      if (icon) {
+        const rect = icon.getBoundingClientRect();
+        const inv = nodeMatrix.inverse();
+        const p = new DOMPoint(rect.left, rect.top).matrixTransform(inv);
+        const q = new DOMPoint(rect.right, rect.bottom).matrixTransform(inv);
+        box = { x: p.x, y: p.y, width: q.x - p.x, height: q.y - p.y };
+      } else {
+        shape = n.shapeElements.find(({ element }) => !element.hasAttribute('data-vsm-double-outline'))?.element;
+        const shapeMatrix = shape?.getScreenCTM();
+        if (shape && shapeMatrix) {
+          box = shape.getBBox();
+          m = parentMatrix.inverse().multiply(shapeMatrix);
+        }
+      }
+      const center = new DOMPoint(box.x + box.width / 2, box.y + box.height / 2).matrixTransform(m);
+      const hw = box.width / 2 * Math.abs(m.a), hh = box.height / 2 * Math.abs(m.d);
+      let left = center.x - hw, right = center.x + hw, top = center.y - hh, bottom = center.y + hh;
+      if (shape?.tagName.toLowerCase() === 'polygon') {
+        const points = [...shape.points].map(p => new DOMPoint(p.x, p.y).matrixTransform(m));
+        const xs = [], ys = [];
+        points.forEach((p, i) => {
+          const q = points[(i + 1) % points.length];
+          if (p.y !== q.y && center.y >= Math.min(p.y, q.y) && center.y <= Math.max(p.y, q.y)) xs.push(p.x + (q.x - p.x) * (center.y - p.y) / (q.y - p.y));
+          if (p.x !== q.x && center.x >= Math.min(p.x, q.x) && center.x <= Math.max(p.x, q.x)) ys.push(p.y + (q.y - p.y) * (center.x - p.x) / (q.x - p.x));
+        });
+        if (xs.length) { left = Math.min(...xs); right = Math.max(...xs); }
+        if (ys.length) { top = Math.min(...ys); bottom = Math.max(...ys); }
+      }
+      return { cx: center.x, cy: center.y, hw, hh, left, right, top, bottom };
+    }
+
+    function pointBetweenParents(point, from, to) {
+      const source = from.getScreenCTM(), target = to.getScreenCTM();
+      return source && target ? new DOMPoint(point.x, point.y).matrixTransform(target.inverse().multiply(source)) : null;
+    }
+
+    function placeEdgeLabel(e, x, y) {
+      if (!e.label) return;
+      const point = pointBetweenParents({ x, y }, e.path.parentNode, e.label.parentNode);
+      if (point) e.label.setAttribute('transform', `translate(${point.x}, ${point.y})`);
     }
 
     // Redraws one edge as a cubic Bezier between the facing sides of its two nodes.
     function routeEdge(e) {
-      const a = nodeBounds(e.src), b = nodeBounds(e.tgt);
-      if (!a || !b || e.src === e.tgt) return null;
+      const a = nodeBounds(e.src, e.path.parentNode), b = nodeBounds(e.tgt, e.path.parentNode);
+      if (!a || !b) return null;
+      if (e.src === e.tgt) {
+        const x = a.cx + a.hw, y = a.cy, r = Math.max(35, a.hw, a.hh);
+        const d = `M ${x} ${y} C ${x + r * 2} ${y - r * 2}, ${x + r * 2} ${y + r * 2}, ${x} ${y}`;
+        e.path.setAttribute('d', d);
+        e.hits.forEach(h => h.setAttribute('d', d));
+        placeEdgeLabel(e, x + r * 1.5, y);
+        return { from: { x, y, ox: 1, oy: 0 }, to: { x, y, ox: 1, oy: 0 } };
+      }
       const dx = b.cx - a.cx, dy = b.cy - a.cy;
       const horizontal = Math.abs(dx) >= Math.abs(dy);
       const s = Math.sign(horizontal ? dx : dy) || 1;
+      const parallel = edgeIndex.filter(other => (other.src === e.src && other.tgt === e.tgt) || (other.src === e.tgt && other.tgt === e.src));
+      const offset = (parallel.indexOf(e) - (parallel.length - 1) / 2) * 28;
       let x1, y1, x2, y2, d;
       if (horizontal) {
-        x1 = a.cx + s * a.hw; y1 = a.cy; x2 = b.cx - s * b.hw; y2 = b.cy;
+        x1 = s > 0 ? a.right : a.left; y1 = a.cy; x2 = s > 0 ? b.left : b.right; y2 = b.cy;
         const h = (x2 - x1) / 2;
-        d = `M ${x1} ${y1} C ${x1 + h} ${y1}, ${x2 - h} ${y2}, ${x2} ${y2}`;
+        d = `M ${x1} ${y1} C ${x1 + h} ${y1 + offset}, ${x2 - h} ${y2 + offset}, ${x2} ${y2}`;
       } else {
-        x1 = a.cx; y1 = a.cy + s * a.hh; x2 = b.cx; y2 = b.cy - s * b.hh;
+        x1 = a.cx; y1 = s > 0 ? a.bottom : a.top; x2 = b.cx; y2 = s > 0 ? b.top : b.bottom;
         const h = (y2 - y1) / 2;
-        d = `M ${x1} ${y1} C ${x1} ${y1 + h}, ${x2} ${y2 - h}, ${x2} ${y2}`;
+        d = `M ${x1} ${y1} C ${x1 + offset} ${y1 + h}, ${x2 + offset} ${y2 - h}, ${x2} ${y2}`;
       }
       e.path.setAttribute('d', d);
       e.hits.forEach(h => h.setAttribute('d', d));
-      if (e.label) e.label.setAttribute('transform', `translate(${(x1 + x2) / 2}, ${(y1 + y2) / 2})`);
+      placeEdgeLabel(e, (x1 + x2) / 2 + (horizontal ? 0 : offset * 0.75), (y1 + y2) / 2 + (horizontal ? offset * 0.75 : 0));
       const ox = horizontal ? s : 0, oy = horizontal ? 0 : s;
       return { from: { x: x1, y: y1, ox, oy }, to: { x: x2, y: y2, ox: -ox, oy: -oy } };
     }
@@ -1012,7 +1136,13 @@
       edgeIndex.forEach(e => {
         if (e.src !== nodeId && e.tgt !== nodeId) return;
         const r = routeEdge(e);
-        if (r) anchors.push(e.src === nodeId ? r.from : r.to);
+        if (r) {
+          const anchor = e.src === nodeId ? r.from : r.to;
+          const parent = nodeIndex[nodeId].el.parentNode;
+          const point = pointBetweenParents(anchor, e.path.parentNode, parent);
+          const direction = pointBetweenParents({ x: anchor.x + anchor.ox, y: anchor.y + anchor.oy }, e.path.parentNode, parent);
+          if (point && direction) anchors.push({ x: point.x, y: point.y, ox: direction.x - point.x, oy: direction.y - point.y });
+        }
       });
       return anchors;
     }
@@ -1044,6 +1174,7 @@
 
     function startNodeDrag(e) {
       dragMoved = false;
+      if (connectArmed || disconnectArmed) return;
       if (e.pointerType === 'mouse' ? e.button !== 0 : !e.isPrimary) return;
       const resizeHandle = e.target.closest?.('.resize-handle');
       if (resizeHandle) { startNodeResize(e, resizeHandle); return; }
@@ -1388,6 +1519,14 @@
       if (!code.trim()) code = 'graph TD\n';
       const spec = {
         process: { base: 'NewNode', def: id => `${id}["New Process"]`, m: { title: 'New Process', owner: '', wip: 0 } },
+        'dedicated-process': { base: 'NewDedicated', def: id => `${id}["Dedicated Process"]`, m: { title: 'Dedicated Process', owner: '', wip: 0, shape: 'rect', icon: 'process_dedicated' } },
+        'shared-process': { base: 'NewShared', def: id => `${id}["Shared Process"]`, m: { title: 'Shared Process', owner: '', wip: 0, shape: 'rect', icon: 'process_shared' } },
+        workcell: { base: 'NewWorkcell', def: id => `${id}["Workcell"]`, m: { title: 'Workcell', owner: '', wip: 0, shape: 'rect', icon: 'workcell' } },
+        supermarket: { base: 'NewSupermarket', def: id => `${id}["Supermarket"]`, m: { title: 'Supermarket', owner: '', wip: 0, shape: 'rect', icon: 'supermarket' } },
+        inspection: { base: 'NewInspection', def: id => `${id}["Quality Inspection"]`, m: { title: 'Quality Inspection', owner: '', wip: 0, shape: 'rect', icon: 'inspection' } },
+        supplier: { base: 'NewSupplier', def: id => `${id}["External Supplier"]`, m: { title: 'External Supplier', owner: '', wip: 0, shape: 'rect', icon: 'supplier' } },
+        customer: { base: 'NewCustomer', def: id => `${id}["Customer"]`, m: { title: 'Customer', owner: '', wip: 0, shape: 'rect', icon: 'customer' } },
+        'milk-run': { base: 'NewMilkRun', def: id => `${id}["Milk Run"]`, m: { title: 'Milk Run', owner: '', wip: 0, shape: 'rect', icon: 'milk_run' } },
         decision: { base: 'NewDec', def: id => `${id}{"New Decision?"}`, m: { title: 'New Decision?', owner: '', wip: 0 } },
         buffer: { base: 'NewWIP', def: id => `${id}[/"WIP: 10 Pcs"\\]`, m: { title: 'WIP: 10 Pcs', owner: 'Buffer', wip: 10 } },
         'double-rect': { base: 'NewDoubleRect', def: id => `${id}["Double Rectangle"]`, m: { title: 'Double Rectangle', owner: '', wip: 0, shape: 'rect', doubleBorder: true } },
@@ -1416,6 +1555,7 @@
       }[type];
       const id = uniqueNodeId(spec.base);
       code = code.replace(/\s*$/, '\n') + `    ${spec.def(id)}\n`;
+      preserveConnectionPositions();
       mermaidCodeInput.value = projectState.mermaid = code;
       projectState.metrics = projectState.metrics || {};
       projectState.metrics[id] = { ...spec.m, ct: 0, co: 0, friction: false };
@@ -1537,6 +1677,7 @@
       const nodeId = activeNodeId, edgeRef = activeEdge;
       const next = edgeRef ? deleteEdgeFromCode(code, kind, edgeRef) : deleteNodeFromCode(code, kind, nodeId);
       if (next === null || next === code) { updateStatus('Nothing to delete for this selection (subgraphs are not deletable)', 'amber'); return; }
+      preserveConnectionPositions();
       mermaidCodeInput.value = projectState.mermaid = next;
       if (nodeId) { delete projectState.metrics[nodeId]; if (projectState.positions) delete projectState.positions[nodeId]; if (projectState.styles) delete projectState.styles[nodeId]; if (projectState.dimensions) delete projectState.dimensions[nodeId]; Object.entries(projectState.notes || {}).forEach(([k, n]) => { if (n.targetId === nodeId) delete projectState.notes[k]; }); }
       if (edgeRef && projectState.edges) delete projectState.edges[edgeKey(edgeRef)];
@@ -1577,12 +1718,12 @@
       };
       document.getElementById('inspectorNodeWidth').value = String(Math.round(dimensions.w));
       document.getElementById('inspectorNodeHeight').value = String(Math.round(dimensions.h));
-      const shapeSel = document.getElementById('inspectorNodeShape'), iconSel = document.getElementById('inspectorNodeIcon');
-      shapeSel.value = m.shape; iconSel.value = m.icon;
-      shapeSel.disabled = iconSel.disabled = !isFlowchart || !!sub;
+      const shapeSel = document.getElementById('inspectorNodeShape');
+      shapeSel.value = ICON_PRIMITIVES.has(m.icon) ? `icon:${m.icon}` : m.shape;
+      shapeSel.disabled = !isFlowchart || !!sub;
       const doubleBorder = document.getElementById('inspectorDoubleBorder');
       doubleBorder.checked = !!m.doubleBorder;
-      doubleBorder.disabled = !isFlowchart || !!sub;
+      doubleBorder.disabled = !isFlowchart || !!sub || ICON_PRIMITIVES.has(m.icon);
       ['inspectorOwner', 'inspectorCT', 'inspectorCO', 'inspectorWIP', 'inspectorFriction'].forEach(id => { document.getElementById(id).disabled = kind === 'sequence'; });
       document.getElementById('inspectorOwner').value = m.owner || '';
       document.getElementById('inspectorCT').value = m.ct || 0;
@@ -1595,11 +1736,12 @@
     }
 
     // ---- Connect Nodes tool ----
-    let connectArmed = false, connectSourceNodeId = null;
+    let connectArmed = false, connectSourceNodeId = null, disconnectArmed = false, disconnectSourceNodeId = null;
 
     function setConnectButton(text, active) {
       const btn = document.getElementById('btnConnectNodes');
       btn.textContent = text;
+      btn.setAttribute('aria-pressed', String(active));
       btn.classList.toggle('bg-emerald-700', active); btn.classList.toggle('hover:bg-emerald-600', active);
       btn.classList.toggle('border-emerald-500', active); btn.classList.toggle('text-white', active);
       btn.classList.toggle('bg-slate-800', !active); btn.classList.toggle('hover:bg-slate-700', !active);
@@ -1610,16 +1752,120 @@
       connectArmed = false; connectSourceNodeId = null;
       mermaidRender.classList.remove('connect-armed');
       mermaidRender.querySelectorAll('.connect-source').forEach(n => n.classList.remove('connect-source'));
-      setConnectButton('🔗 Connect Nodes', false);
+      setConnectButton('🪄 Connect Wand', false);
     }
 
+    function disarmDisconnectMode() {
+      disconnectArmed = false; disconnectSourceNodeId = null;
+      mermaidRender.classList.remove('connect-armed');
+      mermaidRender.querySelectorAll('.connect-source').forEach(n => n.classList.remove('connect-source'));
+      const btn = document.getElementById('btnDisconnectNodes');
+      btn.setAttribute('aria-pressed', 'false');
+      btn.classList.remove('bg-emerald-700', 'border-emerald-500', 'text-white');
+      btn.classList.add('bg-slate-800', 'border-slate-700', 'text-slate-200');
+    }
+
+    function disarmWands() { disarmConnectMode(); disarmDisconnectMode(); }
+
     function toggleConnectMode() {
-      if (connectArmed) { disarmConnectMode(); updateStatus('Connect mode cancelled', 'emerald'); return; }
+      if (connectArmed) { updateStatus('Connect mode active: click the canvas background or press Esc to stop', 'emerald'); return; }
       if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Connect Nodes works on flowcharts only', 'amber'); return; }
+      if (disconnectArmed) disarmDisconnectMode();
       connectArmed = true; connectSourceNodeId = null;
       mermaidRender.classList.add('connect-armed');
       setConnectButton('Select Source...', true);
       updateStatus('Connect mode: click the source node', 'emerald');
+    }
+
+    function toggleDisconnectMode() {
+      if (disconnectArmed) { updateStatus('Disconnect mode active: click the canvas background or press Esc to stop', 'emerald'); return; }
+      if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Disconnect Wand works on flowcharts only', 'amber'); return; }
+      if (connectArmed) disarmConnectMode();
+      disconnectArmed = true; disconnectSourceNodeId = null;
+      mermaidRender.classList.add('connect-armed');
+      const btn = document.getElementById('btnDisconnectNodes');
+      btn.setAttribute('aria-pressed', 'true');
+      btn.classList.remove('bg-slate-800', 'border-slate-700', 'text-slate-200');
+      btn.classList.add('bg-emerald-700', 'border-emerald-500', 'text-white');
+      updateStatus('Disconnect mode: click a connection or two nodes', 'emerald');
+    }
+
+    function disconnectEdge(edge) {
+      const code = mermaidCodeInput.value;
+      const allEdges = parseDisconnectEdges(code);
+      const ordinal = allEdges.findIndex(e => e.src === edge.src && e.tgt === edge.tgt && e.idx === edge.idx);
+      const hasIndexedLinkStyles = /^[ \t]*linkStyle[ \t]+\d/m.test(code);
+      if (hasIndexedLinkStyles && (ordinal < 0 || allEdges.length !== mermaidRender.querySelectorAll('g.edgePaths > path:not(.edge-hit)').length)) {
+        updateStatus('Cannot safely update link styles for this diagram; edit the Mermaid code', 'amber');
+        return;
+      }
+      if (edge.grouped && allEdges.filter(e => e.start === edge.start && e.src === edge.src && e.tgt === edge.tgt).length > 1) {
+        updateStatus('Cannot distinguish repeated nodes in this group; edit the Mermaid code', 'amber');
+        return;
+      }
+      const [start, end] = lineBoundsAt(code, edge.start);
+      let next;
+      if (edge.grouped) {
+        const line = code.slice(start, end).replace(/\n$/, '');
+        const indent = (line.match(/^[ \t]*/) || [''])[0];
+        const definitions = edge.segments.flatMap(segment => segment.map(node => indent + node.original.replace(/;$/, '')));
+        const links = [];
+        edge.connectors.forEach((conn, index) => {
+          edge.segments[index].forEach(src => edge.segments[index + 1].forEach(tgt => {
+            if (index !== edge.connectorIndex || src.id !== edge.src || tgt.id !== edge.tgt) {
+              links.push(`${indent}${src.id} ${conn.text} ${tgt.id}`);
+            }
+          }));
+        });
+        next = code.slice(0, start) + [...definitions, ...links].join('\n') + (end > start && code[end - 1] === '\n' ? '\n' : '') + code.slice(end);
+      } else next = deleteEdgeFromCode(code, 'flow', edge);
+      if (next === null || next === code) { updateStatus('Could not remove this connection', 'amber'); return; }
+      if (hasIndexedLinkStyles) {
+        next = next.replace(/^([ \t]*linkStyle[ \t]+)(\d+(?:[ \t]*,[ \t]*\d+)*)([ \t]+[^\n]*)(\n|$)/gm, (line, prefix, indices, suffix, newline) => {
+          const remaining = indices.split(',').map(Number).filter(n => n !== ordinal).map(n => n > ordinal ? n - 1 : n);
+          return remaining.length ? `${prefix}${remaining.join(',')}${suffix}${newline}` : '';
+        });
+      }
+      preserveConnectionPositions();
+      mermaidCodeInput.value = projectState.mermaid = next;
+      if (projectState.edges) {
+        delete projectState.edges[edgeKey(edge)];
+        allEdges.filter(e => e.src === edge.src && e.tgt === edge.tgt && e.idx > edge.idx).forEach(e => {
+          const oldKey = edgeKey(e), newKey = edgeKey({ ...e, idx: e.idx - 1 });
+          if (Object.hasOwn(projectState.edges, oldKey)) {
+            projectState.edges[newKey] = projectState.edges[oldKey];
+            delete projectState.edges[oldKey];
+          }
+        });
+      }
+      if (activeEdge) closeInspector();
+      disconnectSourceNodeId = null;
+      mermaidRender.querySelectorAll('.connect-source').forEach(n => n.classList.remove('connect-source'));
+      updateLineNumbers(); debouncedRender();
+      updateStatus('Connection removed; select another connection or two nodes', 'emerald');
+    }
+
+    function handleDisconnectNode(nodeEl) {
+      const id = (nodeEl.id || '').replace(/^flowchart-/, '').replace(/-\d+$/, '');
+      if (!id) return;
+      if (disconnectSourceNodeId === null) {
+        disconnectSourceNodeId = id;
+        nodeEl.classList.add('connect-source');
+        updateStatus(`Node ${id} selected: click another node or a connection`, 'emerald');
+        return;
+      }
+      const src = disconnectSourceNodeId;
+      const matches = parseDisconnectEdges(mermaidCodeInput.value).filter(e =>
+        (e.src === src && e.tgt === id) || (e.src === id && e.tgt === src));
+      if (matches.length > 1) { updateStatus('Multiple connections found; click the specific connection to remove', 'amber'); return; }
+      if (!matches.length) { updateStatus('No connection found between those nodes', 'amber'); return; }
+      disconnectEdge(matches[0]);
+    }
+
+    function handleDisconnectEdge(el) {
+      const edge = findFlowEdgeFromElement(el, parseDisconnectEdges(mermaidCodeInput.value));
+      if (!edge) { updateStatus('Could not identify this connection', 'amber'); return; }
+      disconnectEdge(edge);
     }
 
     function handleConnectClick(nodeEl) {
@@ -1633,12 +1879,17 @@
         return;
       }
       const src = connectSourceNodeId;
-      disarmConnectMode();
+      mermaidRender.querySelectorAll('.connect-source').forEach(n => n.classList.remove('connect-source'));
+      connectSourceNodeId = nodeId;
+      nodeEl.classList.add('connect-source');
+      setConnectButton('Select Target...', true);
       const next = mermaidCodeInput.value.replace(/\s+$/, '') + `\n    ${src} --> ${nodeId}`;
+      preserveConnectionPositions();
       mermaidCodeInput.value = projectState.mermaid = next;
       updateLineNumbers(); debouncedRender();
       const edge = parseMermaidEdges(next).filter(e => e.src === src && e.tgt === nodeId).pop();
       if (edge) showEdgeInspector(edge);
+      updateStatus(`Source ${nodeId} selected: click the next target, or press Esc to stop`, 'emerald');
     }
 
     // A new selection always shows the full inspector; the minimized state is only kept while the same selection is being edited.
@@ -1673,8 +1924,14 @@
         btn.classList.add(...(on ? active : inactive));
       });
     }
-    function updateActiveNodeFromInspector() {
+    function updateActiveNodeFromInspector(shapeChanged = false) {
       if (!activeNodeId) return;
+      preserveConnectionPositions();
+      const selectedShape = document.getElementById('inspectorNodeShape').value;
+      const previous = projectState.metrics[activeNodeId];
+      const icon = shapeChanged ? (selectedShape.startsWith('icon:') ? selectedShape.slice(5) : '') : previous.icon;
+      const shape = shapeChanged ? (icon ? 'rect' : selectedShape) : previous.shape;
+      if (shapeChanged) document.getElementById('inspectorDoubleBorder').disabled = !!icon;
       projectState.metrics[activeNodeId] = {
         title: document.getElementById('inspectorTitle').value,
         bold: document.getElementById('inspectorBoldTitle').checked,
@@ -1683,8 +1940,8 @@
         co: parseFloat(document.getElementById('inspectorCO').value) || 0,
         wip: parseFloat(document.getElementById('inspectorWIP').value) || 0,
         friction: document.getElementById('inspectorFriction').checked,
-        shape: document.getElementById('inspectorNodeShape').value,
-        icon: document.getElementById('inspectorNodeIcon').value,
+        shape,
+        icon,
         doubleBorder: document.getElementById('inspectorDoubleBorder').checked
       };
       syncNodeToMermaid(activeNodeId, projectState.metrics[activeNodeId]);
@@ -1803,30 +2060,23 @@
       pull: `<path d='M21 7H6m4-4-4 4 4 4M21 17H6m4-4-4 4 4 4'/>`
     };
     const LEGACY_ICONS = { process_dedicated: '🏭', process_shared: '🔀', workcell: '🧩', supplier: '🏭', customer: '👑', kaizen: '💥', milk_run: '🚚', supermarket: '🏬', inspection: '🔍' };
-    const ICON_PRIMITIVES = new Set(['actor', 'truck', 'plane', 'clock', 'box', 'scissors', 'kaizen', 'cloud', 'document', 'push', 'pull']);
+    const ICON_PRIMITIVES = new Set(Object.keys(ICONS));
     function nodeLabelMetadata(shape, doubleBorder) {
       return `${shape === 'triangle' ? ` data-vsm-shape='triangle'` : ''}${doubleBorder ? ` data-vsm-double='true'` : ''}`;
     }
-    function iconBadge(icon, nodeId, standalone = false) {
+    function iconBadge(icon, nodeId) {
       const paths = ICONS[icon];
       if (!paths) return '';
       const style = projectState.styles?.[nodeId];
       const fill = normalizePickerColor(style?.fill, '#1f2020');
       const rgb = fill.slice(1).match(/.{2}/g).map(v => parseInt(v, 16));
       const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
-      const stroke = standalone
-        ? normalizePickerColor(style?.stroke, luminance > 0.55 ? '#0f172a' : '#ffffff')
-        : luminance > 0.55 ? '#0f172a' : '#ffffff';
-      const size = standalone ? 56 : 20;
-      const background = standalone ? '' : `<rect x='1' y='1' width='22' height='22' rx='5' fill='${fill}' stroke='${stroke}'/>`;
-      return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='${size}' height='${size}' fill='${standalone ? fill : 'none'}' stroke='${stroke}' stroke-width='${standalone ? 1.7 : 1.8}' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>${background}${paths}</svg>`;
+      const stroke = normalizePickerColor(style?.stroke, luminance > 0.55 ? '#0f172a' : '#ffffff');
+      return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='56' height='56' fill='${fill}' stroke='${stroke}' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>${paths}</svg>`;
     }
     function iconTitleLabel(icon, nodeId, title, shape, doubleBorder) {
       const metadata = nodeLabelMetadata(shape, doubleBorder);
-      if (ICON_PRIMITIVES.has(icon)) {
-        return `<span${metadata} style='display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;white-space:nowrap'><span data-icon='${icon}' style='display:block;line-height:0'>${iconBadge(icon, nodeId, true)}</span><span style='display:block;line-height:1.2'>${title}</span></span>`;
-      }
-      return `<span${metadata} class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 leading-none z-10' data-icon='${icon}'>${iconBadge(icon, nodeId)}</span>${title}</span>`;
+      return `<span${metadata} style='display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;white-space:nowrap'><span data-icon='${icon}' style='display:block;line-height:0'>${iconBadge(icon, nodeId)}</span><span style='display:block;line-height:1.2'>${title}</span></span>`;
     }
     function nodeTitleLabel(m, nodeId, title) {
       if (m.icon && ICONS[m.icon]) return iconTitleLabel(m.icon, nodeId, title, m.shape, m.doubleBorder);
@@ -1835,7 +2085,7 @@
     }
     const stripVS = s => s.replace(/\uFE0F/g, '');
 
-    // RMA templates. Labels use the same icon badge + metrics pill markup as syncNodeToMermaid, so the inspector reads them back.
+    // RMA templates use the same symbol and metrics markup as the inspector.
     const tplLabel = (m) => {
       const badge = nodeTitleLabel(m, m.id, m.title);
       const parts = [`👤 ${m.owner}`];
@@ -2071,7 +2321,7 @@
       const html = raw.match(/^\s*<span[^>]*>([\s\S]*?)<\/span>\s*<br\s*\/?>\s*([\s\S]*)$/i);
       const iconPart = html ? html[1] : raw, titlePart = html ? html[2] : null;
       const plain = stripVS(iconPart).trim();
-      for (const [key, emoji] of Object.entries(ICONS)) {
+      for (const [key, emoji] of Object.entries(LEGACY_ICONS)) {
         const e = stripVS(emoji);
         if (plain.startsWith(e)) return cleanTitleLabel({ ...metadata, icon: key, text: html ? titlePart : plain.slice(e.length) });
       }
@@ -2085,6 +2335,20 @@
     function cleanTitleLabel(label) {
       const text = String(label.text || '');
       return { ...label, text: text.replace(/<\/?b\s*>/gi, '').trim(), bold: /<b(?:\s[^>]*)?>/i.test(text) };
+    }
+
+    // Older projects contain top-rim badges in their Mermaid labels. Convert only
+    // the render input so loading a project does not silently rewrite its source.
+    function standaloneRenderCode(code) {
+      if (diagramKind(code) !== 'flow') return code;
+      return code.replace(/\b(\w+)([\[({>]+)"([^"\n]*)"/g, (original, id, opener, label) => {
+        if (/^\s*<span[^>]*display:inline-flex/i.test(label)) return original;
+        const parsed = splitIconLabel(label);
+        if (!ICON_PRIMITIVES.has(parsed.icon)) return original;
+        const pill = (label.match(/<br\s*\/?>\s*<span[^>]*text-\[10px\][^>]*>[\s\S]*?<\/span>\s*$/i) || [''])[0];
+        const title = parsed.bold ? `<b>${parsed.text}</b>` : parsed.text;
+        return `${id}${opener}"${iconTitleLabel(parsed.icon, id, title, parsed.shape, parsed.doubleBorder)}${pill}"`;
+      });
     }
 
     // Finds every definition of nodeId that carries a shape enclosure, e.g. A(["label"]).
@@ -2279,15 +2543,46 @@
       return edges;
     }
 
+    function parseDisconnectEdges(code) {
+      const edges = [], counts = {};
+      let offset = 0;
+      code.split('\n').forEach(line => {
+        const lineStart = offset; offset += line.length + 1;
+        if (EDGE_SKIP.test(line)) return;
+        const masked = maskMermaidLine(line), matches = [...masked.matchAll(EDGE_CONN)];
+        if (!matches.length) return;
+        const connectors = matches.map(m => ({ index: m.index, length: m[0].length, text: line.slice(m.index, m.index + m[0].length) }));
+        const segments = [];
+        let pos = 0;
+        connectors.forEach(conn => { segments.push([pos, conn.index]); pos = conn.index + conn.length; });
+        segments.push([pos, line.length]);
+        const nodes = segments.map(([a, b]) => {
+          let p = a;
+          return masked.slice(a, b).split('&').map(part => {
+            const original = line.slice(p, p + part.length).trim(); p += part.length + 1;
+            return { id: (part.match(/^\s*(\w+)/) || [])[1], original };
+          });
+        });
+        if (nodes.some(group => group.some(node => !node.id))) return;
+        const grouped = nodes.some(group => group.length > 1);
+        connectors.forEach((conn, index) => {
+          const parsed = parseMermaidConnector(conn.text);
+          if (!parsed) return;
+          nodes[index].forEach(src => nodes[index + 1].forEach(tgt => {
+            const pair = src.id + '\0' + tgt.id;
+            const idx = counts[pair] = (counts[pair] ?? -1) + 1;
+            edges.push({ src: src.id, tgt: tgt.id, idx, start: lineStart + conn.index, end: lineStart + conn.index + conn.length, grouped, segments: nodes, connectors, connectorIndex: index, ...parsed });
+          }));
+        });
+      });
+      return edges;
+    }
+
     function edgeKey(e) { return `${e.src}_to_${e.tgt}${e.idx ? '_' + (e.idx + 1) : ''}`; }
 
-    function openEdgeInspectorFromElement(el) {
-      const kind = diagramKind(mermaidCodeInput.value);
-      if (kind === 'state') return openStateTransitionFromElement(el);
-      if (kind !== 'flow') return false;
+    function findFlowEdgeFromElement(el, edges = parseMermaidEdges(mermaidCodeInput.value)) {
       if (!el.matches('path')) el = el.closest('g.edgeLabel') || el;
-      const edges = parseMermaidEdges(mermaidCodeInput.value);
-      if (!edges.length) return false;
+      if (!edges.length) return null;
       const hitPath = el.matches('path') ? el : el.querySelector('path');
       const pathEl = hitPath?.dataset?.edgeFor ? mermaidRender.querySelector(`[id="${hitPath.dataset.edgeFor}"]`) : hitPath;
       const rawId = pathEl?.id || el.querySelector('[data-id]')?.getAttribute('data-id') || el.getAttribute('data-id') || '';
@@ -2301,10 +2596,18 @@
       }
       if (!edge) {
         const text = el.textContent.trim();
-        if (text) edge = edges.find(e => e.label === text);
+        const matches = text ? edges.filter(e => e.label === text) : [];
+        if (matches.length === 1) edge = matches[0];
       }
-      if (!edge) return false;
-      return showEdgeInspector(edge);
+      return edge || null;
+    }
+
+    function openEdgeInspectorFromElement(el) {
+      const kind = diagramKind(mermaidCodeInput.value);
+      if (kind === 'state') return openStateTransitionFromElement(el);
+      if (kind !== 'flow') return false;
+      const edge = findFlowEdgeFromElement(el);
+      return edge ? showEdgeInspector(edge) : false;
     }
 
     function refreshEdgeInspectorState(note) {
@@ -2691,7 +2994,11 @@
       document.getElementById('saveMenuBtn').setAttribute('aria-expanded', String(open));
     }
     document.addEventListener('click', (e) => { if (!e.target.closest('#saveMenuWrap')) closeSaveMenu(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSaveMenu(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      closeSaveMenu();
+      if (connectArmed || disconnectArmed) { disarmWands(); updateStatus('Wand mode cancelled', 'emerald'); }
+    });
   </script>
 </body>
 </html>
