@@ -19,20 +19,22 @@
 * **Node dragging:** pointer events on `#mermaidRender`. Coordinates come from the node's parent `getScreenCTM().inverse()` so dragging stays correct when panned or zoomed. A drag starts after 4px of movement; svg-pan-zoom panning is disabled during the drag. Flowchart and state nodes are draggable; sequence actors are not.
 * **Position persistence:** the offset from Mermaid's layout position is stored in `projectState.positions[id] = {x, y}` and re-applied after each render. Dragging uses Pointer Events: a capture-phase `pointerdown` on `#mermaidRender`, `setPointerCapture` once movement exceeds 4px (below that it is a tap), `getScreenCTM().inverse()` for deltas, a second finger cancels the drag, and node IDs come from `cleanNodeId()` (strips Mermaid's `flowchart-`/`state-` prefix and numeric suffix).
 * **Elastic routing:** `updateNodeConnections(nodeId)` redraws connected edges (and their hit-paths and labels) as cubic Beziers anchored at the facing side midpoints of the node boxes. The `#gooey-anchor` SVG filter (blur + color matrix) is applied to anchor sockets only while dragging.
-* **Object Library:** adds process, decision, WIP, double-boundary/subroutine, human operator, Kaizen, cutoff, ERP/external, ground/air freight, SOP/traveler, wait, inventory, push-flow and pull-flow definitions with unique ids; it also connects nodes (`toggleConnectMode`) and deletes the active node or edge (`deleteSelected`). Flowchart-only for adds and connects.
+* **Object Library:** groups basic shapes, inset double-line variants of those shapes, and process symbols; it also connects nodes (`toggleConnectMode`) and deletes the active node or edge (`deleteSelected`). Flowchart-only for adds and connects.
+* **Shape rendering:** Mermaid remains the source of node and label definitions. Triangle metadata selects polygon geometry at render time; double-line metadata adds an inset, unfilled clone of the base geometry. Both custom shapes participate in resizing and SVG export.
 
 ### Node label markup (single source of truth is the Mermaid code)
 A flowchart node is written atomically as `ID + shape open + "label" + shape close` by `syncNodeToMermaid`, using `SHAPE_MAP`. The label is:
 
 ```html
-<span class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 leading-none z-10' data-icon='KEY'><svg>...</svg></span>Title</span><br/><span class='block text-[10px] opacity-80 font-mono leading-tight mt-1'>👤 Owner | ⏱️ 10m | 🔄 5m | 📦 20pcs</span>
+<span data-vsm-shape='triangle' data-vsm-double='true'>Title</span>
 ```
 
+* **Shape metadata:** `data-vsm-shape` and `data-vsm-double` preserve the custom shape choice while parsing the Mermaid label.
 * **Top-rim badge:** standard process icons remain vector badges over the top border. Their badge uses the node fill and selects a white stroke for dark fills or `#0f172a` for light fills.
 * **Bottom sub-pill:** metric values, shown only for non-zero values.
 * `parseNodeDefinition` / `splitIconLabel` strip both parts so `#inspectorTitle` always holds the clean title.
 
-Actor, truck, plane, clock, box, scissors, Kaizen/sword, and cloud icons are standalone primitives: their Mermaid node geometry is transparent, the 56px vector symbol is centered, and the title is laid out beneath it. The icon key remains in `data-icon`, and the parser reads the primitive layout so title and icon edits continue to round-trip through the inspector.
+Actor, truck, plane, clock, box, scissors, Kaizen/sword, cloud, document, push, and pull icons are standalone primitives: their Mermaid node geometry is transparent, the 56px vector symbol is centered, and the title is laid out beneath it. Fill and border color controls are applied to the vector itself. The icon key remains in `data-icon`, and the parser reads the primitive layout so title and icon edits continue to round-trip through the inspector. Fill, border, and title/font colors are stored per node in `projectState.styles` and emitted as Mermaid style directives.
 
 ### Icon map (non-redundant VSM symbols)
 Process icons deliberately avoid the metric emojis (👤 ⏱️ 🔄 📦).

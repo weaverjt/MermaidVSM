@@ -207,21 +207,47 @@
           <button id="libraryToggleBtn" aria-expanded="true" title="Collapse / expand library" class="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-800 hover:text-slate-200 text-sm leading-none normal-case">−</button>
         </div>
         <div id="libraryBody" class="flex flex-col gap-1.5">
-        <button onclick="addLibraryNode('process')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Process Box</button>
-        <button onclick="addLibraryNode('decision')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Decision Gate</button>
-        <button onclick="addLibraryNode('buffer')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Buffer/WIP</button>
-        <button onclick="addLibraryNode('double-rect')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Double Boundary</button>
-        <button onclick="addLibraryNode('actor')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Human Operator</button>
-        <button onclick="addLibraryNode('kaizen')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Kaizen Burst</button>
-        <button onclick="addLibraryNode('scissors')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Cutoff</button>
-        <button onclick="addLibraryNode('cloud')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ ERP / External</button>
-        <button onclick="addLibraryNode('truck')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Ground Freight</button>
-        <button onclick="addLibraryNode('plane')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Air Freight</button>
-        <button onclick="addLibraryNode('document')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ SOP / Traveler</button>
-        <button onclick="addLibraryNode('clock')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Lead-Time Wait</button>
-        <button onclick="addLibraryNode('box')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Inventory Package</button>
-        <button onclick="addLibraryNode('push')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Push Flow</button>
-        <button onclick="addLibraryNode('pull')" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">+ Pull Flow</button>
+        <details open class="border-b border-slate-800 pb-1">
+          <summary class="cursor-pointer select-none px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Basic Shapes</summary>
+          <div class="mt-1 grid grid-cols-2 gap-1">
+            <button onclick="addLibraryNode('process')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Rectangle</button>
+            <button onclick="addLibraryNode('decision')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Diamond</button>
+            <button onclick="addLibraryNode('shape-rounded')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Rounded</button>
+            <button onclick="addLibraryNode('shape-circle')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Circle</button>
+            <button onclick="addLibraryNode('shape-triangle')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Triangle</button>
+            <button onclick="addLibraryNode('shape-hexagon')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Hexagon</button>
+            <button onclick="addLibraryNode('shape-cylinder')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Cylinder</button>
+            <button onclick="addLibraryNode('buffer')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Buffer / WIP</button>
+          </div>
+        </details>
+        <details class="border-b border-slate-800 pb-1">
+          <summary class="cursor-pointer select-none px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Double-Line Shapes</summary>
+          <div class="mt-1 grid grid-cols-2 gap-1">
+            <button onclick="addLibraryNode('double-rect')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Rectangle</button>
+            <button onclick="addLibraryNode('double-diamond')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Diamond</button>
+            <button onclick="addLibraryNode('double-rounded')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Rounded</button>
+            <button onclick="addLibraryNode('double-circle')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Circle</button>
+            <button onclick="addLibraryNode('double-triangle')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Triangle</button>
+            <button onclick="addLibraryNode('double-hexagon')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Hexagon</button>
+            <button onclick="addLibraryNode('double-cylinder')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Cylinder</button>
+          </div>
+        </details>
+        <details class="border-b border-slate-800 pb-1">
+          <summary class="cursor-pointer select-none px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Process Symbols</summary>
+          <div class="mt-1 grid grid-cols-2 gap-1">
+            <button onclick="addLibraryNode('actor')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Operator</button>
+            <button onclick="addLibraryNode('kaizen')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Kaizen / Sword</button>
+            <button onclick="addLibraryNode('scissors')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Cutoff</button>
+            <button onclick="addLibraryNode('cloud')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">ERP / Cloud</button>
+            <button onclick="addLibraryNode('truck')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Ground Freight</button>
+            <button onclick="addLibraryNode('plane')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Air Freight</button>
+            <button onclick="addLibraryNode('document')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">SOP / Traveler</button>
+            <button onclick="addLibraryNode('clock')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Wait / Clock</button>
+            <button onclick="addLibraryNode('box')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Inventory</button>
+            <button onclick="addLibraryNode('push')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Push Flow</button>
+            <button onclick="addLibraryNode('pull')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Pull Flow</button>
+          </div>
+        </details>
         <button id="btnConnectNodes" onclick="toggleConnectMode()" class="text-left px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">🔗 Connect Nodes</button>
         <button id="btnAddNote" onclick="addNote()" title="Attach a note to the selected node" class="text-left px-2.5 py-1.5 bg-yellow-950/50 hover:bg-yellow-900/60 border border-yellow-700/50 rounded-md text-xs text-yellow-200 transition">📝 Add Note</button>
         <button onclick="deleteSelected()" class="text-left px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-800/60 rounded-md text-xs text-rose-200 transition">🗑️ Delete Selected</button>
@@ -320,6 +346,10 @@
               <label class="block text-[11px] font-semibold text-slate-400 mb-1">Border Color</label>
               <input type="color" id="inspectorStrokeColor" oninput="updateActiveNodeColors()" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
             </div>
+            <div class="col-span-2">
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Title / Font Color</label>
+              <input type="color" id="inspectorTextColor" oninput="updateActiveNodeColors()" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
+            </div>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -338,12 +368,13 @@
                 <option value="rect">Rectangle [ ]</option>
                 <option value="rounded">Rounded Corners ( )</option>
                 <option value="stadium">Stadium / Pill ([ ])</option>
-                <option value="subroutine">Subroutine / Double Boundary [[ ]]</option>
+                <option value="subroutine">Subroutine [[ ]] (Mermaid)</option>
                 <option value="cylinder">Database / Cylinder [( )]</option>
                 <option value="diamond">Decision / Diamond { }</option>
                 <option value="flag">Asymmetric Flag &gt; ]</option>
                 <option value="hexagon">Hexagon {{ }}</option>
                 <option value="circle">Circle (( ))</option>
+                <option value="triangle">Triangle</option>
                 <option value="custom" disabled hidden>Custom (keep existing)</option>
               </select>
             </div>
@@ -373,6 +404,10 @@
               </select>
             </div>
           </div>
+          <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+            <input type="checkbox" id="inspectorDoubleBorder" onchange="updateActiveNodeFromInspector()" class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500">
+            Double-line outline
+          </label>
           <div>
             <label class="block text-[11px] font-semibold text-slate-400 mb-1">Owner / Department</label>
             <input type="text" id="inspectorOwner" oninput="updateActiveNodeFromInspector()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500" placeholder="e.g. Quality Assurance">
@@ -671,6 +706,7 @@
           addEdgeHitPaths(svgElement);
           injectGooeyFilter(svgElement);
           buildDiagramIndex(svgElement);
+          applyCustomNodeShapes();
           pruneOrphanPositions();
           pruneOrphanDimensions();
           if (pruneMetricsOnRender) pruneOrphanNotes();
@@ -765,6 +801,39 @@
           element.style.setProperty('stroke', 'none', 'important');
           element.style.setProperty('pointer-events', 'none', 'important');
         });
+      });
+    }
+
+    function applyCustomNodeShapes() {
+      Object.entries(nodeIndex).forEach(([id, n]) => {
+        const parsed = parseNodeDefinition(mermaidCodeInput.value, id);
+        if (!parsed) return;
+        if (parsed.shape === 'triangle') {
+          const base = n.shapeElements.find(({ element }) => element.matches('rect'));
+          if (base) {
+            const box = base.element.getBBox();
+            const polygon = document.createElementNS(SVG_NS, 'polygon');
+            ['class', 'style', 'fill', 'stroke', 'stroke-width', 'filter'].forEach(attr => {
+              const value = base.element.getAttribute(attr);
+              if (value !== null) polygon.setAttribute(attr, value);
+            });
+            polygon.setAttribute('points', `${box.x + box.width / 2},${box.y} ${box.x + box.width},${box.y + box.height} ${box.x},${box.y + box.height}`);
+            base.element.replaceWith(polygon);
+            n.shapeElements = n.shapeElements.map(item => item === base ? { element: polygon, transform: base.transform } : item);
+          }
+        }
+        if (!parsed.doubleBorder) return;
+        const base = n.shapeElements.find(({ element }) => !element.hasAttribute('data-vsm-double-outline'));
+        if (!base) return;
+        const box = base.element.getBBox();
+        const outline = base.element.cloneNode(true);
+        outline.removeAttribute('id');
+        outline.setAttribute('data-vsm-double-outline', 'true');
+        outline.style.setProperty('fill', 'none', 'important');
+        const insetTransform = `translate(${box.x + box.width / 2} ${box.y + box.height / 2}) scale(0.86) translate(${-box.x - box.width / 2} ${-box.y - box.height / 2})${base.transform ? ` ${base.transform}` : ''}`;
+        outline.setAttribute('transform', insetTransform);
+        n.el.insertBefore(outline, base.element.nextSibling);
+        n.shapeElements.push({ element: outline, transform: insetTransform });
       });
     }
 
@@ -1321,7 +1390,7 @@
         process: { base: 'NewNode', def: id => `${id}["New Process"]`, m: { title: 'New Process', owner: '', wip: 0 } },
         decision: { base: 'NewDec', def: id => `${id}{"New Decision?"}`, m: { title: 'New Decision?', owner: '', wip: 0 } },
         buffer: { base: 'NewWIP', def: id => `${id}[/"WIP: 10 Pcs"\\]`, m: { title: 'WIP: 10 Pcs', owner: 'Buffer', wip: 10 } },
-        'double-rect': { base: 'NewBoundary', def: id => `${id}[["Boundary"]]`, m: { title: 'Boundary', owner: '', wip: 0, shape: 'subroutine' } },
+        'double-rect': { base: 'NewDoubleRect', def: id => `${id}["Double Rectangle"]`, m: { title: 'Double Rectangle', owner: '', wip: 0, shape: 'rect', doubleBorder: true } },
         actor: { base: 'NewActor', def: id => `${id}["Human Operator"]`, m: { title: 'Human Operator', owner: '', wip: 0, icon: 'actor' } },
         kaizen: { base: 'NewKaizen', def: id => `${id}["Kaizen Event"]`, m: { title: 'Kaizen Event', owner: '', wip: 0, icon: 'kaizen' } },
         scissors: { base: 'NewCutoff', def: id => `${id}["Cutoff"]`, m: { title: 'Cutoff', owner: '', wip: 0, icon: 'scissors' } },
@@ -1332,7 +1401,18 @@
         clock: { base: 'NewWait', def: id => `${id}["Wait"]`, m: { title: 'Wait', owner: '', wip: 0, icon: 'clock' } },
         box: { base: 'NewPackage', def: id => `${id}["Inventory"]`, m: { title: 'Inventory', owner: '', wip: 0, icon: 'box' } },
         push: { base: 'NewPush', def: id => `${id}["Push Flow"]`, m: { title: 'Push Flow', owner: '', wip: 0, icon: 'push' } },
-        pull: { base: 'NewPull', def: id => `${id}["Pull Flow"]`, m: { title: 'Pull Flow', owner: '', wip: 0, icon: 'pull' } }
+        pull: { base: 'NewPull', def: id => `${id}["Pull Flow"]`, m: { title: 'Pull Flow', owner: '', wip: 0, icon: 'pull' } },
+        'shape-rounded': { base: 'NewRounded', def: id => `${id}("Rounded Rectangle")`, m: { title: 'Rounded Rectangle', owner: '', wip: 0, shape: 'rounded' } },
+        'shape-circle': { base: 'NewCircle', def: id => `${id}(("Circle"))`, m: { title: 'Circle', owner: '', wip: 0, shape: 'circle' } },
+        'shape-triangle': { base: 'NewTriangle', def: id => `${id}["Triangle"]`, m: { title: 'Triangle', owner: '', wip: 0, shape: 'triangle' } },
+        'shape-hexagon': { base: 'NewHexagon', def: id => `${id}{{"Hexagon"}}`, m: { title: 'Hexagon', owner: '', wip: 0, shape: 'hexagon' } },
+        'shape-cylinder': { base: 'NewCylinder', def: id => `${id}[("Cylinder")]`, m: { title: 'Cylinder', owner: '', wip: 0, shape: 'cylinder' } },
+        'double-diamond': { base: 'NewDoubleDiamond', def: id => `${id}{"Double Diamond"}`, m: { title: 'Double Diamond', owner: '', wip: 0, shape: 'diamond', doubleBorder: true } },
+        'double-rounded': { base: 'NewDoubleRounded', def: id => `${id}("Double Rounded")`, m: { title: 'Double Rounded', owner: '', wip: 0, shape: 'rounded', doubleBorder: true } },
+        'double-circle': { base: 'NewDoubleCircle', def: id => `${id}(("Double Circle"))`, m: { title: 'Double Circle', owner: '', wip: 0, shape: 'circle', doubleBorder: true } },
+        'double-triangle': { base: 'NewDoubleTriangle', def: id => `${id}["Double Triangle"]`, m: { title: 'Double Triangle', owner: '', wip: 0, shape: 'triangle', doubleBorder: true } },
+        'double-hexagon': { base: 'NewDoubleHexagon', def: id => `${id}{{"Double Hexagon"}}`, m: { title: 'Double Hexagon', owner: '', wip: 0, shape: 'hexagon', doubleBorder: true } },
+        'double-cylinder': { base: 'NewDoubleCylinder', def: id => `${id}[("Double Cylinder")]`, m: { title: 'Double Cylinder', owner: '', wip: 0, shape: 'cylinder', doubleBorder: true } }
       }[type];
       const id = uniqueNodeId(spec.base);
       code = code.replace(/\s*$/, '\n') + `    ${spec.def(id)}\n`;
@@ -1476,18 +1556,19 @@
       // The diagram code is the source of truth: shape, icon and title are read from one definition.
       const parsed = isFlowchart ? parseNodeDefinition(code, nodeId) : null;
       const sub = isFlowchart && !parsed ? findSubgraph(code, nodeId) : null;
-      if (parsed) { m.shape = parsed.shape; m.icon = parsed.icon; m.title = parsed.title || nodeId; m.bold = !!parsed.bold; }
+      if (parsed) { m.shape = parsed.shape; m.icon = parsed.icon; m.title = parsed.title || nodeId; m.bold = !!parsed.bold; m.doubleBorder = !!parsed.doubleBorder; }
       else if (sub) { m.shape = 'rect'; m.icon = ''; m.title = sub.label; }
       else if (kind === 'sequence') { m.shape = 'rect'; m.icon = ''; m.title = parseSequenceParticipants(code)[nodeId]?.label || nodeId; }
       else if (kind === 'state' && /^root_(start|end)$/.test(nodeId)) { m.shape = 'rect'; m.icon = ''; m.title = nodeId === 'root_start' ? 'Start [*]' : 'End [*]'; }
       else { m.shape = 'rect'; m.icon = ''; m.title = splitIconLabel(m.title || nodeId).text || nodeId; }
       document.getElementById('inspectorTitle').value = m.title;
       document.getElementById('inspectorBoldTitle').checked = !!m.bold;
-      const styleControls = ['inspectorBoldTitle', 'inspectorFillColor', 'inspectorStrokeColor'];
+      const styleControls = ['inspectorBoldTitle', 'inspectorFillColor', 'inspectorStrokeColor', 'inspectorTextColor'];
       styleControls.forEach(id => { document.getElementById(id).disabled = !isFlowchart || !!sub; });
       const colors = getNodeColors(nodeId);
       document.getElementById('inspectorFillColor').value = colors.fill;
       document.getElementById('inspectorStrokeColor').value = colors.stroke;
+      document.getElementById('inspectorTextColor').value = colors.textColor;
       const dimensionInputs = ['inspectorNodeWidth', 'inspectorNodeHeight'];
       dimensionInputs.forEach(id => { document.getElementById(id).disabled = !isFlowchart || !!sub || !nodeIndex[nodeId]; });
       const dimensions = projectState.dimensions?.[nodeId] || {
@@ -1499,6 +1580,9 @@
       const shapeSel = document.getElementById('inspectorNodeShape'), iconSel = document.getElementById('inspectorNodeIcon');
       shapeSel.value = m.shape; iconSel.value = m.icon;
       shapeSel.disabled = iconSel.disabled = !isFlowchart || !!sub;
+      const doubleBorder = document.getElementById('inspectorDoubleBorder');
+      doubleBorder.checked = !!m.doubleBorder;
+      doubleBorder.disabled = !isFlowchart || !!sub;
       ['inspectorOwner', 'inspectorCT', 'inspectorCO', 'inspectorWIP', 'inspectorFriction'].forEach(id => { document.getElementById(id).disabled = kind === 'sequence'; });
       document.getElementById('inspectorOwner').value = m.owner || '';
       document.getElementById('inspectorCT').value = m.ct || 0;
@@ -1600,7 +1684,8 @@
         wip: parseFloat(document.getElementById('inspectorWIP').value) || 0,
         friction: document.getElementById('inspectorFriction').checked,
         shape: document.getElementById('inspectorNodeShape').value,
-        icon: document.getElementById('inspectorNodeIcon').value
+        icon: document.getElementById('inspectorNodeIcon').value,
+        doubleBorder: document.getElementById('inspectorDoubleBorder').checked
       };
       syncNodeToMermaid(activeNodeId, projectState.metrics[activeNodeId]);
       calculateVSMMetrics();
@@ -1633,9 +1718,12 @@
       const stored = projectState.styles?.[nodeId];
       const shape = nodeIndex[nodeId]?.el.querySelector('rect, polygon, path, circle, ellipse');
       const computed = shape ? getComputedStyle(shape) : null;
+      const label = nodeIndex[nodeId]?.foreignObject?.querySelector('.nodeLabel');
+      const labelComputed = label ? getComputedStyle(label) : null;
       return {
         fill: normalizePickerColor(stored?.fill || computed?.fill, '#1e293b'),
-        stroke: normalizePickerColor(stored?.stroke || computed?.stroke, '#475569')
+        stroke: normalizePickerColor(stored?.stroke || computed?.stroke, '#475569'),
+        textColor: normalizePickerColor(stored?.textColor || labelComputed?.color, '#cccccc')
       };
     }
 
@@ -1645,8 +1733,10 @@
       projectState.styles = projectState.styles || {};
       projectState.styles[nodeId] = {
         fill: document.getElementById('inspectorFillColor').value,
-        stroke: document.getElementById('inspectorStrokeColor').value
+        stroke: document.getElementById('inspectorStrokeColor').value,
+        textColor: document.getElementById('inspectorTextColor').value
       };
+      syncNodeToMermaid(nodeId, projectState.metrics[nodeId] || ensureMetrics(nodeId));
       syncNodeStyleToMermaid(nodeId);
       updateLineNumbers();
       debouncedRender();
@@ -1657,7 +1747,8 @@
       if (!style) return;
       const safeId = escapeRegExp(nodeId);
       const lineRe = new RegExp('^[ \\t]*style[ \\t]+' + safeId + '(?![\\w])[^\\n]*(?:\\n|$)', 'gm');
-      const directive = `    style ${nodeId} fill:${style.fill},stroke:${style.stroke};`;
+      const textStyle = style.textColor ? `,color:${style.textColor}` : '';
+      const directive = `    style ${nodeId} fill:${style.fill},stroke:${style.stroke}${textStyle};`;
       const withoutOld = mermaidCodeInput.value.replace(lineRe, '');
       const code = withoutOld.replace(/\s*$/, '\n') + directive + '\n';
       if (code !== mermaidCodeInput.value) mermaidCodeInput.value = projectState.mermaid = code;
@@ -1680,7 +1771,8 @@
       diamond:    { open: '{',  close: '}'  },
       flag:       { open: '>',  close: ']'  },
       hexagon:    { open: '{{', close: '}}' },
-      circle:     { open: '((', close: '))' }
+      circle:     { open: '((', close: '))' },
+      triangle:   { open: '[',  close: ']'  }
     };
     // Shapes outside the picker are reported as "custom" and keep their existing brackets.
     const CUSTOM_SHAPES = [['(((', ')))'], ['[/', '/]'], ['[\\', '\\]'], ['[/', '\\]'], ['[\\', '/]']];
@@ -1711,29 +1803,41 @@
       pull: `<path d='M21 7H6m4-4-4 4 4 4M21 17H6m4-4-4 4 4 4'/>`
     };
     const LEGACY_ICONS = { process_dedicated: '🏭', process_shared: '🔀', workcell: '🧩', supplier: '🏭', customer: '👑', kaizen: '💥', milk_run: '🚚', supermarket: '🏬', inspection: '🔍' };
-    const ICON_PRIMITIVES = new Set(['actor', 'truck', 'plane', 'clock', 'box', 'scissors', 'kaizen', 'cloud']);
+    const ICON_PRIMITIVES = new Set(['actor', 'truck', 'plane', 'clock', 'box', 'scissors', 'kaizen', 'cloud', 'document', 'push', 'pull']);
+    function nodeLabelMetadata(shape, doubleBorder) {
+      return `${shape === 'triangle' ? ` data-vsm-shape='triangle'` : ''}${doubleBorder ? ` data-vsm-double='true'` : ''}`;
+    }
     function iconBadge(icon, nodeId, standalone = false) {
       const paths = ICONS[icon];
       if (!paths) return '';
-      const fill = normalizePickerColor(projectState.styles?.[nodeId]?.fill, '#1f2020');
+      const style = projectState.styles?.[nodeId];
+      const fill = normalizePickerColor(style?.fill, '#1f2020');
       const rgb = fill.slice(1).match(/.{2}/g).map(v => parseInt(v, 16));
       const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
-      const stroke = luminance > 0.55 ? '#0f172a' : '#ffffff';
+      const stroke = standalone
+        ? normalizePickerColor(style?.stroke, luminance > 0.55 ? '#0f172a' : '#ffffff')
+        : luminance > 0.55 ? '#0f172a' : '#ffffff';
       const size = standalone ? 56 : 20;
       const background = standalone ? '' : `<rect x='1' y='1' width='22' height='22' rx='5' fill='${fill}' stroke='${stroke}'/>`;
-      return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='${size}' height='${size}' fill='none' stroke='${stroke}' stroke-width='${standalone ? 1.7 : 1.8}' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>${background}${paths}</svg>`;
+      return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='${size}' height='${size}' fill='${standalone ? fill : 'none'}' stroke='${stroke}' stroke-width='${standalone ? 1.7 : 1.8}' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>${background}${paths}</svg>`;
     }
-    function iconTitleLabel(icon, nodeId, title) {
+    function iconTitleLabel(icon, nodeId, title, shape, doubleBorder) {
+      const metadata = nodeLabelMetadata(shape, doubleBorder);
       if (ICON_PRIMITIVES.has(icon)) {
-        return `<span style='display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;white-space:nowrap'><span data-icon='${icon}' style='display:block;line-height:0'>${iconBadge(icon, nodeId, true)}</span><span style='display:block;line-height:1.2'>${title}</span></span>`;
+        return `<span${metadata} style='display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;white-space:nowrap'><span data-icon='${icon}' style='display:block;line-height:0'>${iconBadge(icon, nodeId, true)}</span><span style='display:block;line-height:1.2'>${title}</span></span>`;
       }
-      return `<span class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 leading-none z-10' data-icon='${icon}'>${iconBadge(icon, nodeId)}</span>${title}</span>`;
+      return `<span${metadata} class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 leading-none z-10' data-icon='${icon}'>${iconBadge(icon, nodeId)}</span>${title}</span>`;
+    }
+    function nodeTitleLabel(m, nodeId, title) {
+      if (m.icon && ICONS[m.icon]) return iconTitleLabel(m.icon, nodeId, title, m.shape, m.doubleBorder);
+      const metadata = nodeLabelMetadata(m.shape, m.doubleBorder);
+      return metadata ? `<span${metadata}>${title}</span>` : title;
     }
     const stripVS = s => s.replace(/\uFE0F/g, '');
 
     // RMA templates. Labels use the same icon badge + metrics pill markup as syncNodeToMermaid, so the inspector reads them back.
     const tplLabel = (m) => {
-      const badge = m.icon ? iconTitleLabel(m.icon, m.id, m.title) : m.title;
+      const badge = nodeTitleLabel(m, m.id, m.title);
       const parts = [`👤 ${m.owner}`];
       if (m.ct > 0) parts.push(`⏱️ ${m.ct}m`);
       if (m.co > 0) parts.push(`🔄 ${m.co}m`);
@@ -1946,12 +2050,15 @@
 
     function splitIconLabel(label) {
       const raw = (label || '').replace(/<br\s*\/?>\s*<span[^>]*text-\[10px\][^>]*>[\s\S]*?<\/span>\s*$/i, '');
+      const shape = (raw.match(/\bdata-vsm-shape=['"]([\w-]+)['"]/) || [])[1];
+      const doubleBorder = /data-vsm-double=['"]true['"]/.test(raw);
+      const metadata = { shape, doubleBorder };
       // Icon above title: <span ...>EMOJI</span><br/>Title. Legacy form: "EMOJI Title".
       // Current form: <span class='relative…'><span class='absolute…'>EMOJI</span>Title</span>.
       const primitive = raw.match(/^\s*<span[^>]*>\s*<span([^>]*)>([\s\S]*?)<\/span>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/span>\s*$/i);
       if (primitive) {
         const key = (primitive[1].match(/data-icon=['"]([\w]+)['"]/) || [])[1];
-        if (ICON_PRIMITIVES.has(key)) return cleanTitleLabel({ icon: key, text: primitive[3] });
+        if (ICON_PRIMITIVES.has(key)) return cleanTitleLabel({ ...metadata, icon: key, text: primitive[3] });
       }
       const badge = raw.match(/^\s*<span[^>]*\brelative\b[^>]*>\s*<span([^>]*)>([\s\S]*?)<\/span>([\s\S]*?)<\/span>\s*$/i);
       if (badge) {
@@ -1959,14 +2066,18 @@
         const key = (badge[1].match(/data-icon=['"]([\w]+)['"]/) || [])[1];
         const plainBadge = stripVS(badge[2]).trim();
         const found = ICONS[key] ? key : Object.keys(LEGACY_ICONS).find(k => stripVS(LEGACY_ICONS[k]) === plainBadge) || '';
-        return cleanTitleLabel({ icon: found, text: badge[3] });
+        return cleanTitleLabel({ ...metadata, icon: found, text: badge[3] });
       }
       const html = raw.match(/^\s*<span[^>]*>([\s\S]*?)<\/span>\s*<br\s*\/?>\s*([\s\S]*)$/i);
       const iconPart = html ? html[1] : raw, titlePart = html ? html[2] : null;
       const plain = stripVS(iconPart).trim();
       for (const [key, emoji] of Object.entries(ICONS)) {
         const e = stripVS(emoji);
-        if (plain.startsWith(e)) return cleanTitleLabel({ icon: key, text: html ? titlePart : plain.slice(e.length) });
+        if (plain.startsWith(e)) return cleanTitleLabel({ ...metadata, icon: key, text: html ? titlePart : plain.slice(e.length) });
+      }
+      if (shape || doubleBorder) {
+        const plain = raw.replace(/<[^>]*>/g, '').trim();
+        return cleanTitleLabel({ ...metadata, icon: '', text: plain });
       }
       return cleanTitleLabel({ icon: '', text: raw });
     }
@@ -2017,8 +2128,8 @@
     function parseNodeDefinition(code, nodeId) {
       const def = findNodeDefs(code, nodeId)[0];
       if (!def) return null;
-      const { icon, text, bold } = splitIconLabel(def.label);
-      return { shape: def.shape, icon, title: text, bold, def };
+      const parsed = splitIconLabel(def.label);
+      return { shape: parsed.shape || def.shape, doubleBorder: parsed.doubleBorder, icon: parsed.icon, title: parsed.text, bold: parsed.bold, def };
     }
     function getNodeLabel(nodeId) {
       const def = findNodeDefs(mermaidCodeInput.value, nodeId)[0];
@@ -2058,7 +2169,7 @@
         const cleanTitleText = (m.title || '').trim() || (defs[0] ? splitIconLabel(defs[0].label).text : '') || nodeId;
         const safeTitle = cleanTitleText.replace(/"/g, '#quot;');
         const formattedTitle = m.bold ? `<b>${safeTitle}</b>` : safeTitle.replace(/<\/?b\s*>/gi, '');
-        const fullTitle = m.icon && ICONS[m.icon] ? iconTitleLabel(m.icon, nodeId, formattedTitle) : formattedTitle;
+        const fullTitle = nodeTitleLabel(m, nodeId, formattedTitle);
         const parts = [];
         const owner = (m.owner || '').trim().replace(/"/g, '#quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         if (owner) parts.push(`👤 ${owner}`);
