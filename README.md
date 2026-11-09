@@ -10,11 +10,11 @@ Mermaid Studio is an interactive, single-file HTML / ES6 / Tailwind CSS workspac
 
 - **Dynamic SVG drag-and-drop:** drag flowchart and state-diagram nodes on the canvas. Works with mouse, pen and touch (Pointer Events, >4px movement starts a drag, a tap selects). Offsets are saved per node in `projectState.positions[id]` and re-applied after every render.
 - **Gooey Bezier line routing:** connected edges are redrawn as cubic Bezier curves while you drag, and `#gooey-anchor` SVG-filtered anchor sockets appear on the dragged node.
-- **Dual-tab Node / Edge inspector:** a floating drawer for node title, shape, icon, owner, C/T, C/O, WIP and friction, and for connector label, line style and arrowhead. Edits write back into the Mermaid code live.
+- **Node / Edge inspector:** a floating drawer for node title (including bold), fill/border colors, shape, icon, owner, C/T, C/O, WIP and friction, and for connector label, line style and arrowhead. Edits write back into the Mermaid code live.
 - **Top-rim Lean process icon badges:** non-redundant VSM symbols (dedicated/shared process, workcell, supplier, customer, kaizen burst, milk run, supermarket, go-see) float on the node's top border.
 - **Bottom metric sub-pills:** Owner 👤, Cycle Time ⏱️, Changeover 🔄 and WIP 📦 render under the node title.
 - **VSM summary ladder:** VA time, lead time, total WIP, friction points and efficiency update live.
-- **Object Library:** add Process, Decision and Buffer/WIP nodes, connect nodes visually, and delete the selected node or edge.
+- **Object Library:** batch-add Process, Decision and Buffer/WIP nodes without automatically opening the inspector (`projectState.settings.autoOpenInspector` defaults to `false`), connect nodes visually, and delete the selected node or edge.
 - **Templates:** Value Stream Map, Standard Process Flow, RMA Departmental Swimlanes (CS/TS/WH/TI/AP lanes, with metrics, icons and a CS-to-TS handoff note), RMA Sequence Handoff (`graph LR` with a $750 decision gate), State Machine and Root Cause Tree.
 - **Base64 URL parameter state hydration:** open a project from a link with `?state=<base64 of a .vsm.json>` (see below).
 - **Process Notes:** select a node and click **📝 Add Note** to attach a draggable yellow note card with a dashed connector. Notes are saved in `.vsm.json` and included in PNG/SVG exports.

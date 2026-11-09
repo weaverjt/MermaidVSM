@@ -291,7 +291,23 @@
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-slate-400 mb-1">Step Name / Title</label>
-            <input type="text" id="inspectorTitle" oninput="updateActiveNodeFromInspector()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500">
+            <div class="flex items-center gap-2">
+              <input type="text" id="inspectorTitle" oninput="updateActiveNodeFromInspector()" class="min-w-0 flex-1 bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500">
+              <label class="flex items-center gap-1.5 shrink-0 text-[11px] text-slate-300 cursor-pointer">
+                <input type="checkbox" id="inspectorBoldTitle" onchange="updateActiveNodeFromInspector()" class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-blue-500">
+                Bold Title
+              </label>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Fill Color</label>
+              <input type="color" id="inspectorFillColor" oninput="updateActiveNodeColors()" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Border Color</label>
+              <input type="color" id="inspectorStrokeColor" oninput="updateActiveNodeColors()" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
+            </div>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -413,12 +429,19 @@
         metrics: {}
       }
     };
-    let projectState = { title: "RMA Process Current State", mermaid: "", metrics: {}, positions: {}, notes: {} };
+    let projectState = { title: "RMA Process Current State", mermaid: "", metrics: {}, positions: {}, notes: {}, styles: {}, settings: { autoOpenInspector: false } };
+
+    function normalizeProjectSettings() {
+      if (!projectState.settings || typeof projectState.settings !== 'object' || Array.isArray(projectState.settings)) projectState.settings = {};
+      if (typeof projectState.settings.autoOpenInspector !== 'boolean') projectState.settings.autoOpenInspector = false;
+      if (!projectState.styles || typeof projectState.styles !== 'object' || Array.isArray(projectState.styles)) projectState.styles = {};
+    }
 
     // Node drag offsets live in projectState.positions[nodeId]; older files stored them in metrics[nodeId].pos.
     function normalizePositions() {
       const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
       if (!isObj(projectState.metrics)) projectState.metrics = {};
+      normalizeProjectSettings();
       const pos = projectState.positions = isObj(projectState.positions) ? projectState.positions : {};
       Object.entries(projectState.metrics).forEach(([id, m]) => {
         if (m && m.pos) { if (!pos[id]) pos[id] = m.pos; delete m.pos; }
@@ -503,6 +526,7 @@
           projectState.edges = {};
           projectState.positions = {};
           projectState.notes = JSON.parse(JSON.stringify(selected.notes || {}));
+          projectState.styles = {};
           mermaidCodeInput.value = selected.mermaid;
           resetInteractionState();
           updateLineNumbers(); renderDiagram(); calculateVSMMetrics();
@@ -1085,7 +1109,7 @@
       await renderDiagram();
       await nextFrame();
       placeNodeAtCanvasCenter(id);
-      openInspector(id);
+      if (projectState.settings?.autoOpenInspector === true) openInspector(id);
     }
 
     function lineBoundsAt(code, offset) {
@@ -1199,7 +1223,7 @@
       const next = edgeRef ? deleteEdgeFromCode(code, kind, edgeRef) : deleteNodeFromCode(code, kind, nodeId);
       if (next === null || next === code) { updateStatus('Nothing to delete for this selection (subgraphs are not deletable)', 'amber'); return; }
       mermaidCodeInput.value = projectState.mermaid = next;
-      if (nodeId) { delete projectState.metrics[nodeId]; if (projectState.positions) delete projectState.positions[nodeId]; Object.entries(projectState.notes || {}).forEach(([k, n]) => { if (n.targetId === nodeId) delete projectState.notes[k]; }); }
+      if (nodeId) { delete projectState.metrics[nodeId]; if (projectState.positions) delete projectState.positions[nodeId]; if (projectState.styles) delete projectState.styles[nodeId]; Object.entries(projectState.notes || {}).forEach(([k, n]) => { if (n.targetId === nodeId) delete projectState.notes[k]; }); }
       if (edgeRef && projectState.edges) delete projectState.edges[edgeKey(edgeRef)];
       closeInspector();
       updateLineNumbers(); calculateVSMMetrics();
@@ -1216,12 +1240,18 @@
       // The diagram code is the source of truth: shape, icon and title are read from one definition.
       const parsed = isFlowchart ? parseNodeDefinition(code, nodeId) : null;
       const sub = isFlowchart && !parsed ? findSubgraph(code, nodeId) : null;
-      if (parsed) { m.shape = parsed.shape; m.icon = parsed.icon; m.title = parsed.title || nodeId; }
+      if (parsed) { m.shape = parsed.shape; m.icon = parsed.icon; m.title = parsed.title || nodeId; m.bold = !!parsed.bold; }
       else if (sub) { m.shape = 'rect'; m.icon = ''; m.title = sub.label; }
       else if (kind === 'sequence') { m.shape = 'rect'; m.icon = ''; m.title = parseSequenceParticipants(code)[nodeId]?.label || nodeId; }
       else if (kind === 'state' && /^root_(start|end)$/.test(nodeId)) { m.shape = 'rect'; m.icon = ''; m.title = nodeId === 'root_start' ? 'Start [*]' : 'End [*]'; }
       else { m.shape = 'rect'; m.icon = ''; m.title = splitIconLabel(m.title || nodeId).text || nodeId; }
       document.getElementById('inspectorTitle').value = m.title;
+      document.getElementById('inspectorBoldTitle').checked = !!m.bold;
+      const styleControls = ['inspectorBoldTitle', 'inspectorFillColor', 'inspectorStrokeColor'];
+      styleControls.forEach(id => { document.getElementById(id).disabled = !isFlowchart || !!sub; });
+      const colors = getNodeColors(nodeId);
+      document.getElementById('inspectorFillColor').value = colors.fill;
+      document.getElementById('inspectorStrokeColor').value = colors.stroke;
       const shapeSel = document.getElementById('inspectorNodeShape'), iconSel = document.getElementById('inspectorNodeIcon');
       shapeSel.value = m.shape; iconSel.value = m.icon;
       shapeSel.disabled = iconSel.disabled = !isFlowchart || !!sub;
@@ -1318,6 +1348,7 @@
       if (!activeNodeId) return;
       projectState.metrics[activeNodeId] = {
         title: document.getElementById('inspectorTitle').value,
+        bold: document.getElementById('inspectorBoldTitle').checked,
         owner: document.getElementById('inspectorOwner').value,
         ct: parseFloat(document.getElementById('inspectorCT').value) || 0,
         co: parseFloat(document.getElementById('inspectorCO').value) || 0,
@@ -1328,6 +1359,47 @@
       };
       syncNodeToMermaid(activeNodeId, projectState.metrics[activeNodeId]);
       calculateVSMMetrics();
+    }
+
+    function normalizePickerColor(value, fallback) {
+      if (/^#[0-9a-f]{6}$/i.test(value || '')) return value.toLowerCase();
+      const rgb = String(value || '').match(/^rgba?\(\s*(\d+)[, ]+\s*(\d+)[, ]+\s*(\d+)/i);
+      if (!rgb) return fallback;
+      return '#' + rgb.slice(1, 4).map(n => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, '0')).join('');
+    }
+
+    function getNodeColors(nodeId) {
+      const stored = projectState.styles?.[nodeId];
+      const shape = nodeIndex[nodeId]?.el.querySelector('rect, polygon, path, circle, ellipse');
+      const computed = shape ? getComputedStyle(shape) : null;
+      return {
+        fill: normalizePickerColor(stored?.fill || computed?.fill, '#1e293b'),
+        stroke: normalizePickerColor(stored?.stroke || computed?.stroke, '#475569')
+      };
+    }
+
+    function updateActiveNodeColors() {
+      if (!activeNodeId || diagramKind(mermaidCodeInput.value) !== 'flow') return;
+      const nodeId = activeNodeId;
+      projectState.styles = projectState.styles || {};
+      projectState.styles[nodeId] = {
+        fill: document.getElementById('inspectorFillColor').value,
+        stroke: document.getElementById('inspectorStrokeColor').value
+      };
+      syncNodeStyleToMermaid(nodeId);
+      updateLineNumbers();
+      debouncedRender();
+    }
+
+    function syncNodeStyleToMermaid(nodeId) {
+      const style = projectState.styles?.[nodeId];
+      if (!style) return;
+      const safeId = escapeRegExp(nodeId);
+      const lineRe = new RegExp('^[ \\t]*style[ \\t]+' + safeId + '(?![\\w])[^\\n]*(?:\\n|$)', 'gm');
+      const directive = `    style ${nodeId} fill:${style.fill},stroke:${style.stroke};`;
+      const withoutOld = mermaidCodeInput.value.replace(lineRe, '');
+      const code = withoutOld.replace(/\s*$/, '\n') + directive + '\n';
+      if (code !== mermaidCodeInput.value) mermaidCodeInput.value = projectState.mermaid = code;
     }
 
     function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
@@ -1582,16 +1654,21 @@
         const key = (badge[1].match(/data-icon=['"]([\w]+)['"]/) || [])[1];
         const plainBadge = stripVS(badge[2]).trim();
         const found = ICONS[key] && stripVS(ICONS[key]) === plainBadge ? key : Object.keys(ICONS).find(k => stripVS(ICONS[k]) === plainBadge) || '';
-        return { icon: found, text: badge[3].trim() };
+        return cleanTitleLabel({ icon: found, text: badge[3] });
       }
       const html = raw.match(/^\s*<span[^>]*>([\s\S]*?)<\/span>\s*<br\s*\/?>\s*([\s\S]*)$/i);
       const iconPart = html ? html[1] : raw, titlePart = html ? html[2] : null;
       const plain = stripVS(iconPart).trim();
       for (const [key, emoji] of Object.entries(ICONS)) {
         const e = stripVS(emoji);
-        if (plain.startsWith(e)) return { icon: key, text: (html ? titlePart : plain.slice(e.length)).trim() };
+        if (plain.startsWith(e)) return cleanTitleLabel({ icon: key, text: html ? titlePart : plain.slice(e.length) });
       }
-      return { icon: '', text: raw.trim() };
+      return cleanTitleLabel({ icon: '', text: raw });
+    }
+
+    function cleanTitleLabel(label) {
+      const text = String(label.text || '');
+      return { ...label, text: text.replace(/<\/?b\s*>/gi, '').trim(), bold: /<b(?:\s[^>]*)?>/i.test(text) };
     }
 
     // Finds every definition of nodeId that carries a shape enclosure, e.g. A(["label"]).
@@ -1635,8 +1712,8 @@
     function parseNodeDefinition(code, nodeId) {
       const def = findNodeDefs(code, nodeId)[0];
       if (!def) return null;
-      const { icon, text } = splitIconLabel(def.label);
-      return { shape: def.shape, icon, title: text, def };
+      const { icon, text, bold } = splitIconLabel(def.label);
+      return { shape: def.shape, icon, title: text, bold, def };
     }
     function getNodeLabel(nodeId) {
       const def = findNodeDefs(mermaidCodeInput.value, nodeId)[0];
@@ -1675,7 +1752,8 @@
         const shape = m.shape || (defs[0] ? defs[0].shape : 'rect');
         const cleanTitleText = (m.title || '').trim() || (defs[0] ? splitIconLabel(defs[0].label).text : '') || nodeId;
         const safeTitle = cleanTitleText.replace(/"/g, '#quot;');
-        const fullTitle = m.icon && ICONS[m.icon] ? `<span class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 text-xs leading-none z-10' data-icon='${m.icon}'>${ICONS[m.icon]}</span>${safeTitle}</span>` : safeTitle;
+        const formattedTitle = m.bold ? `<b>${safeTitle}</b>` : safeTitle.replace(/<\/?b\s*>/gi, '');
+        const fullTitle = m.icon && ICONS[m.icon] ? `<span class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 text-xs leading-none z-10' data-icon='${m.icon}'>${ICONS[m.icon]}</span>${formattedTitle}</span>` : formattedTitle;
         const parts = [];
         const owner = (m.owner || '').trim().replace(/"/g, '#quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         if (owner) parts.push(`👤 ${owner}`);
@@ -1872,7 +1950,7 @@
               mermaidCodeInput.value = parsed.mermaid;
             }
           } catch(err) { alert('Invalid project JSON file.'); }
-        } else { projectState.mermaid = content; projectState.positions = {}; projectState.notes = {}; mermaidCodeInput.value = content; }
+        } else { projectState.mermaid = content; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; mermaidCodeInput.value = content; }
         resetInteractionState();
         updateLineNumbers(); renderDiagram(); calculateVSMMetrics();
       };
@@ -2021,7 +2099,7 @@
     function zoomIn() { if (panZoomInstance) panZoomInstance.zoomIn(); }
     function zoomOut() { if (panZoomInstance) panZoomInstance.zoomOut(); }
     function resetZoom() { if (panZoomInstance) { panZoomInstance.resetZoom(); panZoomInstance.fit(); panZoomInstance.center(); } }
-    function clearCode() { mermaidCodeInput.value = ''; projectState.positions = {}; projectState.notes = {}; projectState.metrics = {}; resetInteractionState(); updateLineNumbers(); renderDiagram(); calculateVSMMetrics(); }
+    function clearCode() { mermaidCodeInput.value = ''; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.metrics = {}; resetInteractionState(); updateLineNumbers(); renderDiagram(); calculateVSMMetrics(); }
     function formatCode() { mermaidCodeInput.value = mermaidCodeInput.value.split('\n').map(l => l.trimEnd()).join('\n'); updateLineNumbers(); }
     const EXPORT_STYLE_PROPS = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color', 'text-anchor', 'dominant-baseline', 'text-align', 'line-height', 'display', 'padding', 'white-space', 'overflow', 'visibility', 'filter'];
     function exportBaseName() {
