@@ -19,16 +19,16 @@
 * **Node dragging:** pointer events on `#mermaidRender`. Coordinates come from the node's parent `getScreenCTM().inverse()` so dragging stays correct when panned or zoomed. A drag starts after 4px of movement; svg-pan-zoom panning is disabled during the drag. Flowchart and state nodes are draggable; sequence actors are not.
 * **Position persistence:** the offset from Mermaid's layout position is stored in `projectState.positions[id] = {x, y}` and re-applied after each render. Dragging uses Pointer Events: a capture-phase `pointerdown` on `#mermaidRender`, `setPointerCapture` once movement exceeds 4px (below that it is a tap), `getScreenCTM().inverse()` for deltas, a second finger cancels the drag, and node IDs come from `cleanNodeId()` (strips Mermaid's `flowchart-`/`state-` prefix and numeric suffix).
 * **Elastic routing:** `updateNodeConnections(nodeId)` redraws connected edges (and their hit-paths and labels) as cubic Beziers anchored at the facing side midpoints of the node boxes. The `#gooey-anchor` SVG filter (blur + color matrix) is applied to anchor sockets only while dragging.
-* **Object Library:** adds `NewNode`, `NewDec` and `NewWIP` definitions with unique ids, connects nodes (`toggleConnectMode`), and deletes the active node or edge (`deleteSelected`). Flowchart-only for adds and connects.
+* **Object Library:** adds process, decision, WIP, double-boundary/subroutine, human operator, Kaizen, cutoff, ERP/external, ground/air freight, SOP/traveler, wait, inventory, push-flow and pull-flow definitions with unique ids; it also connects nodes (`toggleConnectMode`) and deletes the active node or edge (`deleteSelected`). Flowchart-only for adds and connects.
 
 ### Node label markup (single source of truth is the Mermaid code)
 A flowchart node is written atomically as `ID + shape open + "label" + shape close` by `syncNodeToMermaid`, using `SHAPE_MAP`. The label is:
 
 ```html
-<span class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 text-xs leading-none z-10' data-icon='KEY'>EMOJI</span>Title</span><br/><span class='block text-[10px] opacity-80 font-mono leading-tight mt-1'>👤 Owner | ⏱️ 10m | 🔄 5m | 📦 20pcs</span>
+<span class='relative inline-block px-1'><span class='absolute -top-3 left-1/2 -translate-x-1/2 leading-none z-10' data-icon='KEY'><svg>...</svg></span>Title</span><br/><span class='block text-[10px] opacity-80 font-mono leading-tight mt-1'>👤 Owner | ⏱️ 10m | 🔄 5m | 📦 20pcs</span>
 ```
 
-* **Top-rim badge:** the process icon, positioned over the top border.
+* **Top-rim badge:** a vector process icon positioned over the top border. Its badge uses the node fill and selects a white stroke for dark fills or `#0f172a` for light fills.
 * **Bottom sub-pill:** metric values, shown only for non-zero values.
 * `parseNodeDefinition` / `splitIconLabel` strip both parts so `#inspectorTitle` always holds the clean title.
 
@@ -37,18 +37,26 @@ Process icons deliberately avoid the metric emojis (👤 ⏱️ 🔄 📦).
 
 | Key | Icon | Meaning |
 |---|---|---|
-| `process_dedicated` | 🏭 | Dedicated process |
-| `process_shared` | 🔀 | Shared process |
-| `workcell` | 🧩 | Workcell |
-| `supplier` | 🏭 | External supplier |
-| `customer` | 👑 | Customer / recipient |
-| `kaizen` | 💥 | Kaizen burst |
-| `milk_run` | 🚚 | Milk run / transport |
-| `supermarket` | 🏬 | Supermarket / storage |
-| `inspection` | 🔍 | Go-See / quality inspection |
+| `process_dedicated` | Factory | Dedicated process |
+| `process_shared` | Shared paths | Shared process |
+| `workcell` | Workcell grid | Workcell |
+| `supplier` | Factory / inbound | External supplier |
+| `customer` | Person | Customer / recipient |
+| `kaizen` | Burst | Kaizen burst |
+| `milk_run` | Truck | Milk run / transport |
+| `supermarket` | Shelves | Supermarket / storage |
+| `inspection` | Magnifier / crosshair | Go-See / quality inspection |
+| `actor` | Stick figure | Human operator |
+| `scissors` | Scissors | Cutoff |
+| `cloud` | Cloud | ERP / external system |
+| `truck` / `plane` | Truck / plane | Ground / air freight |
+| `document` | Document | SOP / traveler |
+| `clock` | Clock | Lead-time wait |
+| `box` | Package | Inventory |
+| `push` / `pull` | Flow arrows | Push / pull flow |
 
 ### `data-icon` persistence
-`process_dedicated` and `supplier` share the 🏭 emoji, so the emoji alone cannot identify the icon. The badge span therefore carries a `data-icon='<key>'` attribute, and `splitIconLabel` reads it first. It falls back to matching the emoji (first matching key) for labels without the attribute. Icon keys from earlier versions (`user`, `gear`, ...) are no longer recognised and load as "No Process Icon".
+The badge span carries a `data-icon='<key>'` attribute, which `splitIconLabel` reads to preserve the icon while editing. `LEGACY_ICONS` keeps existing emoji badges readable while labels are migrated to vector markup.
 
 ### Friction highlighting
 `class <id> friction;` lines (no semicolon in `stateDiagram-v2`) plus a single `classDef friction fill:#451a03,stroke:#f97316,stroke-width:2px,color:#ffedd5;`. The `classDef` is added when any node is flagged and removed when none are.
