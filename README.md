@@ -26,6 +26,8 @@ Mermaid Studio is an interactive, single-file HTML / ES6 / Tailwind CSS workspac
 
 Use **Save / Export → Save All Tabs** for a portable workspace backup, or **Save Current Canvas** for one canvas. Opening a workspace adds its tabs to the existing session and selects its saved active tab. `.vsm` files are JSON and can be reopened through the app; merely changing the extension does **not** make the operating system launch it on double-click.
 
+If the native save dialog is unavailable (for example, in some embedded or automated browsers), use **Download All Tabs** or **Download Current Canvas** instead. The browser chooses the download location; check its downloads to confirm the file was actually saved. Cancelling a native picker does not automatically download a file.
+
 Desktop double-click integration is future work: it requires an installed, HTTPS-hosted PWA with a manifest `file_handlers` declaration and a `launchQueue` consumer, plus browser and OS permission/default-app selection. Support is limited to compatible desktop Chromium-based browsers; the standalone `file:` bundle does not register file associations. See [MDN's file handling guide](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/How_to/Associate_files_with_your_PWA).
 
 ## Setup / Local Running

@@ -2170,6 +2170,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     .canvas-tab-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #workspaceWarning { padding: 6px 12px; background: #78350f; color: #fef3c7; font-size: 12px; }
     #workspaceWarning[hidden] { display: none; }
+    #saveMenu { max-height: 60vh; overflow-y: auto; }
     #fileDropOverlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, .88); border: 4px dashed #60a5fa; color: #e2e8f0; font-size: 1.2rem; pointer-events: none; }
     #fileDropOverlay[hidden] { display: none; }
     .bg-grid-pattern { background-size: 24px 24px; background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px); }
@@ -2314,6 +2315,8 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           <div class="border-t border-slate-800 my-1"></div>
           <button role="menuitem" onclick="closeSaveMenu(); saveProjectFile(false)" class="w-full text-left px-3 py-2 hover:bg-slate-800 transition">💾 Save Current Canvas (.vsm)</button>
           <button role="menuitem" onclick="closeSaveMenu(); saveProjectFile(true)" class="w-full text-left px-3 py-2 hover:bg-slate-800 transition">💾 Save All Tabs (.vsm)</button>
+          <button role="menuitem" onclick="closeSaveMenu(); saveProjectFile(false, true)" class="w-full text-left px-3 py-2 hover:bg-slate-800 transition">⬇ Download Current Canvas (.vsm)</button>
+          <button role="menuitem" onclick="closeSaveMenu(); saveProjectFile(true, true)" class="w-full text-left px-3 py-2 hover:bg-slate-800 transition">⬇ Download All Tabs (.vsm)</button>
           <button role="menuitem" onclick="closeSaveMenu(); saveProjectJSON()" class="w-full text-left px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">Legacy canvas file (.vsm.json)</button>
         </div>
       </div>
@@ -5252,12 +5255,12 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       };
     }
 
-    async function saveProjectFile(allTabs) {
+    async function saveProjectFile(allTabs, downloadOnly = false) {
       try {
         const snapshot = JSON.stringify(projectSnapshot(allTabs), null, 2);
         const name = allTabs ? 'mermaid-vsm-workspace.vsm' : `${exportBaseName()}.vsm`;
-        await saveProjectBlob(new Blob([snapshot], { type: 'application/json' }), name, '.vsm');
-      } catch (err) { console.error('Could not save project:', err); alert(`Could not save project: ${err.message || err}`); }
+        await saveProjectBlob(new Blob([snapshot], { type: 'application/json' }), name, '.vsm', downloadOnly);
+      } catch (err) { console.error('Could not save project:', err); updateStatus('Project save failed', 'rose'); alert(`Could not save project: ${err.message || err}`); }
     }
 
     async function saveProjectJSON() {
@@ -5266,33 +5269,13 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         if (pendingConnectionPositions) { alert('A canvas layout update is still pending. Save as .vsm to preserve it.'); return; }
         const blob = new Blob([JSON.stringify(projectState, null, 2)], { type: 'application/json' });
         await saveProjectBlob(blob, `${exportBaseName()}.vsm.json`, '.json');
-      } catch (err) { console.error('Could not save project:', err); alert(`Could not save project: ${err.message || err}`); }
+      } catch (err) { console.error('Could not save project:', err); updateStatus('Project save failed', 'rose'); alert(`Could not save project: ${err.message || err}`); }
     }
 
-    async function saveProjectBlob(blob, name, extension) {
-      let handle = null;
-      if (typeof window.showSaveFilePicker === 'function') {
-        try {
-          handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'MermaidVSM project', accept: { 'application/json': [extension] } }] });
-        } catch (err) {
-          if (err.name === 'AbortError') return;
-          if (err.name !== 'SecurityError' && err.name !== 'NotAllowedError') throw err;
-          console.warn('Native project save picker unavailable; using browser download:', err);
-        }
-      }
-      if (handle) {
-        const writable = await handle.createWritable();
-        try { await writable.write(blob); await writable.close(); }
-        catch (err) {
-          try { await writable.abort(); } catch (abortError) { console.warn('Could not abort project write:', abortError); }
-          throw err;
-        }
-      } else {
-        const url = URL.createObjectURL(blob);
-        downloadURL(url, name);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      }
-      updateStatus(`${handle ? 'Saved' : 'Download started'}: ${name}`, 'emerald');
+    async function saveProjectBlob(blob, name, extension, downloadOnly = false) {
+      const handle = downloadOnly ? null : await pickSaveHandle(name, 'MermaidVSM project', 'application/json', extension);
+      if (handle === 'cancel') { updateStatus('Save cancelled or unavailable; use Download in the Save menu', 'amber'); return; }
+      updateStatus(await saveBlob(blob, name, handle), 'emerald');
     }
 
     function updateLineNumbers() { lineNumbers.innerHTML = Array.from({ length: mermaidCodeInput.value.split('\n').length }, (_, i) => i + 1).join('<br>'); }
@@ -5300,7 +5283,12 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     function dismissError() { errorBanner.classList.add('hidden'); }
     function updateStatus(text, color) {
       const colorMap = { emerald: 'bg-emerald-500', rose: 'bg-rose-500', amber: 'bg-amber-500' };
-      statusIndicator.innerHTML = `<span class="w-2 h-2 rounded-full ${colorMap[color] || 'bg-slate-500'}"></span><span class="text-slate-300">${text}</span>`;
+      const indicator = document.createElement('span');
+      indicator.className = `w-2 h-2 rounded-full ${colorMap[color] || 'bg-slate-500'}`;
+      const message = document.createElement('span');
+      message.className = 'text-slate-300';
+      message.textContent = text;
+      statusIndicator.replaceChildren(indicator, message);
     }
 
     function refitCanvas() {
@@ -5432,7 +5420,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     const EXPORT_STYLE_PROPS = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color', 'text-anchor', 'dominant-baseline', 'text-align', 'line-height', 'display', 'padding', 'white-space', 'overflow', 'visibility', 'filter'];
     function exportBaseName() {
       const t = (projectState.title || 'mermaid-studio').toString().trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-      return `${t || 'mermaid-studio'}.vsm`;
+      return t || 'mermaid-studio';
     }
     // Wraps each HTML label in <switch>: viewers that support foreignObject use it, others (Inkscape, Illustrator, some converters) fall back to plain SVG <text>.
     function addForeignObjectTextFallback(liveSvg, cloneSvg) {
@@ -5501,28 +5489,33 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       const a = document.createElement('a'); a.href = url; a.download = name;
       document.body.appendChild(a); a.click(); a.remove();
     }
-    // Native "Save as" dialog via the File System Access API. Resolves to a file handle, 'cancel' if the user dismissed the dialog,
-    // or null when the API is unavailable or blocked, so the caller can fall back to a normal <a download>.
     async function pickSaveHandle(suggestedName, description, mime, ext) {
       if (typeof window.showSaveFilePicker !== 'function') return null;
       try {
         return await window.showSaveFilePicker({ suggestedName, types: [{ description, accept: { [mime]: [ext] } }] });
       } catch (err) {
-        return err && err.name === 'AbortError' ? 'cancel' : null;
+        if (err.name === 'AbortError') return 'cancel';
+        if (err.name !== 'SecurityError' && err.name !== 'NotAllowedError') throw err;
+        console.warn('Native save picker unavailable; requesting browser download:', err);
+        return null;
       }
     }
-    // Writes the blob through the picked handle; falls back to a download if the handle cannot be written.
     async function saveBlob(blob, fileName, handle) {
-      if (handle && handle !== 'cancel') {
+      if (handle) {
+        const writable = await handle.createWritable();
         try {
-          const w = await handle.createWritable();
-          try { await w.write(blob); } finally { await w.close(); }
-          return;
-        } catch (err) { console.warn('File picker write failed, falling back to download:', err); }
+          await writable.write(blob);
+          await writable.close();
+        } catch (err) {
+          try { await writable.abort(); } catch (abortError) { console.warn('Could not abort failed file write:', abortError); }
+          throw err;
+        }
+        return `Saved: ${handle.name || fileName}`;
       }
       const url = URL.createObjectURL(blob);
       downloadURL(url, fileName);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return `Download requested: ${fileName} (check browser downloads)`;
     }
     async function exportSVG() {
       try {
@@ -5531,8 +5524,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         const name = `${exportBaseName()}.svg`;
         const handle = await pickSaveHandle(name, 'SVG Image', 'image/svg+xml', '.svg');
         if (handle === 'cancel') { updateStatus('Save cancelled', 'amber'); return; }
-        await saveBlob(new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + out.xml], { type: 'image/svg+xml;charset=utf-8' }), name, handle);
-        updateStatus('Exported SVG successfully', 'emerald');
+        updateStatus(await saveBlob(new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + out.xml], { type: 'image/svg+xml;charset=utf-8' }), name, handle), 'emerald');
       } catch (err) { console.error(err); updateStatus('SVG export failed', 'rose'); }
     }
     async function exportMermaidText() {
@@ -5542,8 +5534,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         const name = `${exportBaseName()}.txt`;
         const handle = await pickSaveHandle(name, 'Text File', 'text/plain', '.txt');
         if (handle === 'cancel') { updateStatus('Save cancelled', 'amber'); return; }
-        await saveBlob(new Blob([code + '\n'], { type: 'text/plain;charset=utf-8' }), name, handle);
-        updateStatus('Exported Mermaid code successfully', 'emerald');
+        updateStatus(await saveBlob(new Blob([code + '\n'], { type: 'text/plain;charset=utf-8' }), name, handle), 'emerald');
       } catch (err) { console.error(err); updateStatus('Mermaid code export failed', 'rose'); }
     }
     async function exportPNG() {
@@ -5552,7 +5543,9 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       if (!out) { updateStatus('Nothing to export: render a diagram first', 'amber'); return; }
       const name = `${exportBaseName()}.png`;
       // Ask for the save location first, while the click's user activation is still valid.
-      const handle = await pickSaveHandle(name, 'PNG Image', 'image/png', '.png');
+      let handle;
+      try { handle = await pickSaveHandle(name, 'PNG Image', 'image/png', '.png'); }
+      catch (err) { console.error(err); updateStatus('PNG export failed', 'rose'); return; }
       if (handle === 'cancel') { updateStatus('Save cancelled', 'amber'); return; }
       const img = new Image();
       img.onload = () => {
@@ -5566,8 +5559,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           canvas.toBlob(async (blob) => {
             try {
               if (!blob) throw new Error('Canvas produced no image data');
-              await saveBlob(blob, name, handle);
-              updateStatus('Exported PNG successfully', 'emerald');
+              updateStatus(await saveBlob(blob, name, handle), 'emerald');
             } catch (err) { console.error(err); updateStatus('PNG export failed', 'rose'); }
           }, 'image/png');
         } catch (err) { console.error(err); updateStatus('PNG export failed (canvas blocked)', 'rose'); }
