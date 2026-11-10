@@ -14,6 +14,9 @@
 
 ## Phase 7 Architecture
 
+### Canvas tabs
+Each canvas tab owns an independent `projectState`. Template and file loads create tabs; switching tabs updates the active editor and renderer without replacing other canvases. The browser workspace is autosaved to local storage and restored on reload. A storage error or a change from another browser tab pauses autosave and warns the user to export each canvas; `.vsm.json` remains a single-canvas format. URL and embedded state loads also create tabs.
+
 ### Canvas interaction
 * **Layout:** `#previewPanel` fills the window. The editor (bottom-left), Object Library (top-left) and Inspector (top-right) are floating cards.
 * **Node dragging:** pointer events on `#mermaidRender`. Coordinates come from the node's parent `getScreenCTM().inverse()` so dragging stays correct when panned or zoomed. A drag starts after 4px of movement; svg-pan-zoom panning is disabled during the drag. Flowchart and state nodes are draggable; sequence actors are not.
@@ -72,4 +75,4 @@ The symbol span carries a `data-icon='<key>'` attribute, which `splitIconLabel` 
 `projectState.notes = { note_1: { targetId, text, offset: {x, y} } }`, where `offset` is the card's top-left relative to the target node's centre (in diagram units). `normalizeNotes()` validates entries on every load. Cards are drawn by `renderNotes()` into `<g id="notesLayer">` (a `note-links` group under a `note-cards` group), added inside the diagram root before svg-pan-zoom initialises, so notes pan, zoom and export with the diagram. Text is SVG `<text>`/`<tspan>` with canvas-measured word wrapping rather than `foreignObject`, so it rasterises reliably to PNG. The dashed yellow connector (`#eab308`, `8,6`) runs from the node's edge to the card and is recomputed by `placeNote()` when the card or its node is dragged. Cards reuse the shared `drag` pointer pipeline (`kind: 'note'`). Selecting a note opens a third inspector tab with a textarea and a Delete Note button; `activeNoteId` is separate from `activeNodeId` so deleting a note cannot remove the node by accident. `pruneOrphanNotes()` runs after template/file/URL loads, before saving `.vsm.json`, and when a node is deleted; it is not run on ordinary typing edits. The selection outline (`.note-sel`) is stripped from exports.
 
 ### URL state loader
-`loadStateFromURL()` runs at the end of `DOMContentLoaded`. It reads `?state=` (or `#state=`), decodes Base64/Base64url as UTF-8 JSON, requires a non-empty `mermaid` string, then sets `projectState`, the editor, the diagram and the VSM summary exactly as `loadFile` does. Invalid values show a status-bar error and leave the empty workspace in place.
+`loadStateFromURL()` runs during `DOMContentLoaded`. It reads `?state=` (or `#state=`), decodes Base64/Base64url as UTF-8 JSON, and opens a canvas containing its `mermaid` string. A matching restored URL tab is reused on reload. Invalid values show a status-bar error and leave the restored workspace in place.

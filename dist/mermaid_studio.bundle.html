@@ -2163,6 +2163,13 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #475569; }
     .code-input { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; tab-size: 2; }
+    #canvasTabs { display: flex; gap: 4px; overflow-x: auto; padding: 4px 12px; background: #0f172a; border-bottom: 1px solid #334155; flex: none; }
+    .canvas-tab { display: flex; flex: none; align-items: center; border: 1px solid #334155; border-radius: 6px; background: #1e293b; }
+    .canvas-tab.active { border-color: #3b82f6; background: #1e3a5f; }
+    .canvas-tab button { border: 0; background: transparent; padding: 6px 8px; font-size: 12px; }
+    .canvas-tab-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #workspaceWarning { padding: 6px 12px; background: #78350f; color: #fef3c7; font-size: 12px; }
+    #workspaceWarning[hidden] { display: none; }
     .bg-grid-pattern { background-size: 24px 24px; background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px); }
     /* Expand click targets for nodes and edges */
     #mermaidRender .node,
@@ -2216,6 +2223,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     @media (max-height: 700px) { #editorBody { height: 200px; } }
     /* 44px touch targets (phones and any coarse pointer). Connector hit paths use a screen-space stroke so they stay 44px wide at any zoom. */
     @media (pointer: coarse), (max-width: 767px) {
+      .canvas-tab button { min-width: 44px; min-height: 44px; }
       header button, header select, header label, #saveMenu button, #objectLibrary button, #objectLibrary summary, #editorPanel button, #zoomControls button { min-height: 44px; }
       #zoomControls button, #editorPanel button { min-width: 44px; }
       #inspectorDrawer button, #inspectorDrawer select, #inspectorDrawer input:not([type="checkbox"]) { min-height: 44px; }
@@ -2268,6 +2276,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     <div class="flex items-center space-x-2">
       <select id="templateSelect" class="bg-slate-800 border border-slate-700 text-xs text-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[180px] sm:max-w-[240px] truncate">
         <option value="" selected disabled>Select a template...</option>
+        <option value="blank">✨ Blank Canvas</option>
         <optgroup label="Lean & Value Stream">
           <option value="vsm_horizontal">Value Stream Map (LR + WIP)</option>
           <option value="standard_process">Standard Process Flow (Decision Gates)</option>
@@ -2306,6 +2315,8 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       </div>
     </div>
   </header>
+  <div id="workspaceWarning" role="alert" hidden></div>
+  <div id="canvasTabs" role="tablist" aria-label="Canvas tabs"></div>
   <main id="dropZone" class="flex-1 flex relative overflow-hidden">
     <section id="editorPanel" class="absolute bottom-12 left-3 w-80 sm:w-96 max-h-[320px] bg-slate-900/95 border border-slate-800 rounded-xl shadow-2xl z-30 flex flex-col backdrop-blur-md transition-all overflow-hidden">
       <div class="sheet-handle" data-sheet="editor" role="separator" aria-label="Drag down to close the code editor"></div>
@@ -2702,13 +2713,168 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     const statusIndicator = document.getElementById('statusIndicator');
     const lineNumbers = document.getElementById('lineNumbers');
     const inspectorDrawer = document.getElementById('inspectorDrawer');
+    const WORKSPACE_KEY = 'mermaid-vsm-workspace-v1';
+    let canvasTabs = [], activeCanvasId = null, nextCanvasId = 1, canvasGeneration = 0;
+    let workspaceSavingBlocked = false, lastSavedWorkspace = null;
+
+    function blankProject() {
+      return { title: 'Blank Canvas', mermaid: '', metrics: {}, positions: {}, notes: {}, styles: {}, dimensions: {}, edges: {}, selectedNode: null, settings: { autoOpenInspector: false } };
+    }
+
+    function workspaceWarning(message, error) {
+      workspaceSavingBlocked = true;
+      const warning = document.getElementById('workspaceWarning');
+      warning.textContent = message;
+      warning.hidden = false;
+      if (error) console.error(message, error);
+    }
+
+    function syncActiveCanvas() {
+      const tab = canvasTabs.find(t => t.id === activeCanvasId);
+      if (!tab) return;
+      projectState.mermaid = mermaidCodeInput.value;
+      tab.state = projectState;
+      tab.pendingPositions = pendingConnectionPositions;
+    }
+
+    function saveWorkspace() {
+      if (workspaceSavingBlocked || !activeCanvasId) return;
+      syncActiveCanvas();
+      try {
+        const data = JSON.stringify({ version: 1, activeCanvasId, nextCanvasId, tabs: canvasTabs });
+        if (data !== lastSavedWorkspace) {
+          localStorage.setItem(WORKSPACE_KEY, data);
+          lastSavedWorkspace = data;
+        }
+      } catch (err) {
+        workspaceWarning('Browser autosave is unavailable. Save each canvas as a project file before closing this page.', err);
+      }
+    }
+
+    function restoreWorkspace() {
+      try {
+        const data = localStorage.getItem(WORKSPACE_KEY);
+        if (!data) return false;
+        const workspace = JSON.parse(data);
+        if (workspace.version !== 1 || !Array.isArray(workspace.tabs) || !workspace.tabs.length ||
+            workspace.tabs.some(t => !t || !Number.isSafeInteger(t.id) || typeof t.name !== 'string' || !t.state || typeof t.state.mermaid !== 'string') ||
+            new Set(workspace.tabs.map(t => t.id)).size !== workspace.tabs.length ||
+            !workspace.tabs.some(t => t.id === workspace.activeCanvasId)) throw new Error('Invalid saved workspace');
+        canvasTabs = workspace.tabs;
+        activeCanvasId = workspace.activeCanvasId;
+        nextCanvasId = Math.max(...canvasTabs.map(t => t.id)) + 1;
+        lastSavedWorkspace = data;
+        projectState = canvasTabs.find(t => t.id === activeCanvasId).state;
+        normalizePositions();
+        mermaidCodeInput.value = projectState.mermaid;
+        return true;
+      } catch (err) {
+        workspaceWarning('Could not restore the browser workspace. Existing saved data was not overwritten; save your work as project files.', err);
+        return false;
+      }
+    }
+
+    function renderCanvasTabs() {
+      const list = document.getElementById('canvasTabs');
+      const scrollLeft = list.scrollLeft;
+      let activeItem = null;
+      list.replaceChildren();
+      canvasTabs.forEach(tab => {
+        const item = document.createElement('div');
+        item.className = 'canvas-tab' + (tab.id === activeCanvasId ? ' active' : '');
+        if (tab.id === activeCanvasId) activeItem = item;
+        const select = document.createElement('button');
+        select.type = 'button'; select.className = 'canvas-tab-name';
+        select.textContent = tab.name; select.title = tab.name;
+        select.setAttribute('role', 'tab');
+        select.setAttribute('aria-selected', String(tab.id === activeCanvasId));
+        select.addEventListener('click', () => activateCanvasTab(tab.id));
+        const close = document.createElement('button');
+        close.type = 'button'; close.textContent = '×';
+        close.setAttribute('aria-label', `Close ${tab.name}`);
+        close.addEventListener('click', () => closeCanvasTab(tab.id));
+        item.append(select, close); list.appendChild(item);
+      });
+      list.scrollLeft = scrollLeft;
+      if (activeItem) {
+        const bounds = list.getBoundingClientRect(), active = activeItem.getBoundingClientRect();
+        if (active.left < bounds.left) list.scrollLeft += active.left - bounds.left;
+        else if (active.right > bounds.right) list.scrollLeft += active.right - bounds.right;
+      }
+    }
+
+    function activateCanvasTab(id) {
+      const tab = canvasTabs.find(t => t.id === id);
+      if (!tab || (id === activeCanvasId && projectState === tab.state)) return;
+      endNodeDrag();
+      syncActiveCanvas();
+      resetInteractionState();
+      pruneMetricsOnRender = false;
+      if (panZoomInstance) { panZoomInstance.destroy(); panZoomInstance = null; }
+      nodeIndex = {}; edgeIndex = [];
+      mermaidRender.innerHTML = '';
+      document.getElementById('nodeCount').textContent = 'Nodes: 0';
+      dismissError();
+      activeCanvasId = id;
+      canvasGeneration++;
+      projectState = tab.state;
+      pendingConnectionPositions = tab.pendingPositions || null;
+      normalizePositions();
+      mermaidCodeInput.value = projectState.mermaid;
+      updateLineNumbers(); renderCanvasTabs(); renderDiagram(); calculateVSMMetrics(); saveWorkspace();
+    }
+
+    function openCanvasTab(name, state, sourceUrl) {
+      const base = String(name || 'Canvas');
+      let label = base, suffix = 2;
+      while (canvasTabs.some(tab => tab.name === label)) label = `${base} (${suffix++})`;
+      const tab = { id: nextCanvasId++, name: label, state };
+      if (sourceUrl) tab.sourceUrl = sourceUrl;
+      canvasTabs.push(tab);
+      activateCanvasTab(tab.id);
+    }
+
+    function closeCanvasTab(id) {
+      const index = canvasTabs.findIndex(t => t.id === id);
+      if (index < 0) return;
+      syncActiveCanvas();
+      const tab = canvasTabs[index];
+      const hasWork = tab.state.mermaid.trim() ||
+        ['notes', 'metrics', 'positions', 'styles', 'dimensions', 'edges'].some(key => Object.keys(tab.state[key] || {}).length);
+      if (hasWork &&
+          !confirm(`Close "${tab.name}"? This removes its browser-saved canvas. Save a project file first if you need to keep it.`)) return;
+      if (id === activeCanvasId) {
+        if (canvasTabs.length === 1) openCanvasTab('Blank Canvas', blankProject());
+        else activateCanvasTab(canvasTabs[index === 0 ? 1 : index - 1].id);
+      }
+      canvasTabs.splice(canvasTabs.indexOf(tab), 1);
+      renderCanvasTabs(); saveWorkspace();
+    }
 
     window.addEventListener('DOMContentLoaded', () => {
       if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', flowchart: { htmlLabels: true, curve: 'basis' } });
       else document.getElementById('depWarning').hidden = false;
-      mermaidCodeInput.value = projectState.mermaid;
-      // Hydrate ?state= first so an embedded load renders once, directly, instead of flashing the default template.
+      if (!restoreWorkspace()) {
+        projectState = blankProject();
+        canvasTabs = [{ id: nextCanvasId++, name: 'Blank Canvas', state: projectState }];
+        activeCanvasId = canvasTabs[0].id;
+        mermaidCodeInput.value = projectState.mermaid;
+      }
+      renderCanvasTabs();
+      pendingConnectionPositions = canvasTabs.find(t => t.id === activeCanvasId).pendingPositions || null;
       if (!loadStateFromURL()) { updateLineNumbers(); renderDiagram(); }
+      saveWorkspace();
+      setInterval(saveWorkspace, 1000);
+      window.addEventListener('pagehide', () => { endNodeDrag(); saveWorkspace(); });
+      window.addEventListener('beforeunload', e => {
+        endNodeDrag(); saveWorkspace();
+        if (workspaceSavingBlocked) { e.preventDefault(); e.returnValue = ''; }
+      });
+      window.addEventListener('storage', e => {
+        if (e.key === WORKSPACE_KEY && e.newValue !== lastSavedWorkspace) {
+          workspaceWarning('This workspace changed in another browser tab. Autosave is paused here to protect your work; save each canvas as a project file before closing or reloading.');
+        }
+      });
       ['input', 'paste', 'change', 'keyup'].forEach(evt => {
         mermaidCodeInput.addEventListener(evt, () => { projectState.mermaid = mermaidCodeInput.value; updateLineNumbers(); debouncedRender(); });
       });
@@ -2781,21 +2947,20 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           if (nodeId) openInspector(nodeId);
         }
       });
-      document.getElementById('templateSelect').addEventListener('change', (e) => {
-        const selected = TEMPLATES[e.target.value];
+      const templateSelect = document.getElementById('templateSelect');
+      templateSelect.addEventListener('change', () => {
+        const value = templateSelect.value;
+        const selected = Object.hasOwn(TEMPLATES, value) ? TEMPLATES[value] : null;
+        templateSelect.value = '';
+        if (value !== 'blank' && !selected) return;
+        const state = blankProject();
         if (selected) {
-          projectState.title = selected.title;
-          projectState.mermaid = selected.mermaid;
-          projectState.metrics = JSON.parse(JSON.stringify(selected.metrics || {}));
-          projectState.edges = {};
-          projectState.positions = {};
-          projectState.notes = JSON.parse(JSON.stringify(selected.notes || {}));
-          projectState.styles = {};
-          projectState.dimensions = {};
-          mermaidCodeInput.value = selected.mermaid;
-          resetInteractionState();
-          updateLineNumbers(); renderDiagram(); calculateVSMMetrics();
+          state.title = selected.title;
+          state.mermaid = selected.mermaid;
+          state.metrics = JSON.parse(JSON.stringify(selected.metrics || {}));
+          state.notes = JSON.parse(JSON.stringify(selected.notes || {}));
         }
+        openCanvasTab(state.title, state);
       });
       lucide.createIcons();
       calculateVSMMetrics();
@@ -2809,15 +2974,10 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       return JSON.parse(new TextDecoder().decode(bytes));
     }
 
-    function hydrateFromState(parsed) {
-      if (!parsed || typeof parsed.mermaid !== 'string' || !parsed.mermaid.trim()) throw new Error('State has no "mermaid" field.');
-      projectState = parsed;
-      projectState.metrics = projectState.metrics || {};
-      normalizePositions();
-      if (parsed.project?.title) projectState.title = parsed.project.title;
-      mermaidCodeInput.value = parsed.mermaid;
-      resetInteractionState();
-      updateLineNumbers(); renderDiagram(); calculateVSMMetrics();
+    function hydrateFromState(parsed, sourceUrl) {
+      if (!parsed || typeof parsed.mermaid !== 'string') throw new Error('State has no "mermaid" field.');
+      const name = parsed.project?.title || parsed.title || 'Imported Canvas';
+      openCanvasTab(name, parsed, sourceUrl);
     }
 
     // Hydrates the workspace from ?state=<base64 or base64url of a .vsm.json> (or #state=...).
@@ -2828,7 +2988,9 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       const encoded = params.get('state') || hashParams.get('state');
       if (!encoded) return false;
       try {
-        hydrateFromState(decodeStateParam(encoded));
+        const existing = canvasTabs.find(tab => tab.sourceUrl === encoded);
+        if (existing) { updateLineNumbers(); renderDiagram(); }
+        else hydrateFromState(decodeStateParam(encoded), encoded);
         return true;
       } catch (err) {
         updateStatus('Could not load ?state= parameter', 'rose');
@@ -2877,6 +3039,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         if (panZoomInstance) { panZoomInstance.destroy(); panZoomInstance = null; }
         nodeIndex = {}; edgeIndex = [];
         mermaidRender.innerHTML = '<p class="text-xs text-slate-500 font-mono">Open a .vsm.json project file or select a template to begin.</p>';
+        document.getElementById('nodeCount').textContent = 'Nodes: 0';
         updateStatus('Ready', 'emerald'); dismissError(); return;
       }
       let pan = null, zoom = null;
@@ -3781,6 +3944,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     }
 
     async function addLibraryNode(type) {
+      const generation = canvasGeneration;
       let code = mermaidCodeInput.value;
       if (code.trim() && diagramKind(code) !== 'flow') { updateStatus('Library objects need a flowchart (graph / flowchart) diagram', 'amber'); return; }
       if (!code.trim()) code = 'graph TD\n';
@@ -3833,6 +3997,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       updateLineNumbers(); calculateVSMMetrics();
       await renderDiagram();
       await nextFrame();
+      if (canvasGeneration !== generation) return;
       placeNodeAtCanvasCenter(id);
       if (projectState.settings?.autoOpenInspector === true) openInspector(id);
     }
@@ -4966,7 +5131,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     }
 
     function handleFileDrop(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('bg-blue-950/20'); if (e.dataTransfer.files.length > 0) loadFile(e.dataTransfer.files[0]); }
-    function handleFileSelect(e) { if (e.target.files.length > 0) loadFile(e.target.files[0]); }
+    function handleFileSelect(e) { if (e.target.files.length > 0) loadFile(e.target.files[0]); e.target.value = ''; }
     function loadFile(file) {
       const reader = new FileReader();
       reader.onload = (evt) => {
@@ -4974,18 +5139,16 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         if (file.name.endsWith('.json')) {
           try {
             const parsed = JSON.parse(content);
-            if (parsed.mermaid) {
-              projectState = parsed;
-              projectState.metrics = projectState.metrics || {};
-              normalizePositions();
-              if (parsed.project?.title) projectState.title = parsed.project.title;
-              mermaidCodeInput.value = parsed.mermaid;
-            }
-          } catch(err) { alert('Invalid project JSON file.'); }
-        } else { projectState.mermaid = content; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; projectState.edges = {}; mermaidCodeInput.value = content; }
-        resetInteractionState();
-        updateLineNumbers(); renderDiagram(); calculateVSMMetrics();
+            hydrateFromState(parsed);
+          } catch(err) { console.error('Invalid project JSON file:', err); alert('Invalid project JSON file.'); }
+        } else {
+          const state = blankProject();
+          state.title = file.name;
+          state.mermaid = content;
+          openCanvasTab(state.title, state);
+        }
       };
+      reader.onerror = () => { console.error('Could not read project file:', reader.error); alert('Could not read project file.'); };
       reader.readAsText(file);
     }
 
@@ -5131,7 +5294,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     function zoomIn() { if (panZoomInstance) panZoomInstance.zoomIn(); }
     function zoomOut() { if (panZoomInstance) panZoomInstance.zoomOut(); }
     function resetZoom() { if (panZoomInstance) { panZoomInstance.resetZoom(); panZoomInstance.fit(); panZoomInstance.center(); } }
-    function clearCode() { mermaidCodeInput.value = ''; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; projectState.edges = {}; projectState.metrics = {}; resetInteractionState(); updateLineNumbers(); renderDiagram(); calculateVSMMetrics(); }
+    function clearCode() { mermaidCodeInput.value = projectState.mermaid = ''; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; projectState.edges = {}; projectState.metrics = {}; resetInteractionState(); updateLineNumbers(); renderDiagram(); calculateVSMMetrics(); }
     function formatCode() { mermaidCodeInput.value = mermaidCodeInput.value.split('\n').map(l => l.trimEnd()).join('\n'); updateLineNumbers(); }
     const EXPORT_STYLE_PROPS = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color', 'text-anchor', 'dominant-baseline', 'text-align', 'line-height', 'display', 'padding', 'white-space', 'overflow', 'visibility', 'filter'];
     function exportBaseName() {
