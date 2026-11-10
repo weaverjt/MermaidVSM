@@ -39,6 +39,8 @@
     #saveMenu { max-height: 60vh; overflow-y: auto; }
     #fileDropOverlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, .88); border: 4px dashed #60a5fa; color: #e2e8f0; font-size: 1.2rem; pointer-events: none; }
     #fileDropOverlay[hidden] { display: none; }
+    #selectionToolbar[hidden] { display: none; }
+    #groupTitleForm[hidden], #groupSelectedBtn[hidden] { display: none; }
     .bg-grid-pattern { background-size: 24px 24px; background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px); }
     /* Expand click targets for nodes and edges */
     #mermaidRender .node,
@@ -66,6 +68,8 @@
     #mermaidRender.cluster-edit-mode g.cluster, #mermaidRender.cluster-edit-mode g.cluster > rect, #mermaidRender.cluster-edit-mode g.cluster > .cluster-label, #mermaidRender.cluster-edit-mode g.cluster > .cluster-label * { pointer-events: all !important; cursor: crosshair; }
     #mermaidRender.cluster-edit-mode { cursor: crosshair; }
     #mermaidRender .cluster-selection { fill: none; stroke: #60a5fa; stroke-width: 3px; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; pointer-events: none; }
+    #mermaidRender .multi-selection, #mermaidRender .selection-marquee { fill: none; stroke: #60a5fa; stroke-width: 2px; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+    #mermaidRender .selection-marquee { fill: rgba(96, 165, 250, .12); }
     #mermaidRender g.process-note { cursor: grab; pointer-events: all; touch-action: none; }
     #mermaidRender g.process-note text { user-select: none; pointer-events: none; }
     /* Mobile: 44px touch targets in the inspector, safe-area insets for floating bottom panels */
@@ -229,6 +233,16 @@
           <button onclick="dismissError()" class="text-rose-400 hover:text-rose-200 p-0.5"><i data-lucide="x" class="w-4 h-4"></i></button>
         </div>
       </div>
+      <div id="selectionToolbar" hidden class="absolute top-3 right-3 z-30 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-2 flex flex-wrap items-center gap-2 max-w-[calc(100%-1.5rem)]">
+        <span id="selectionCount" class="text-xs text-slate-200"></span>
+        <button id="groupSelectedBtn" type="button" onclick="beginGroupSelected()" class="px-2 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white">Group into Subgraph</button>
+        <form id="groupTitleForm" hidden onsubmit="submitGroupSelected(event)" class="flex items-center gap-1">
+          <label for="groupTitle" class="sr-only">Subgraph title</label>
+          <input id="groupTitle" type="text" required maxlength="200" value="New Department" class="w-28 bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white">
+          <button type="submit" class="px-2 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white">Create</button>
+          <button type="button" onclick="cancelGroupSelected()" class="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white">Cancel</button>
+        </form>
+      </div>
       <div id="objectLibrary" class="absolute top-3 left-3 w-44 bg-slate-900/95 border border-slate-800 rounded-xl shadow-2xl z-30 backdrop-blur-md p-2 flex flex-col gap-1.5 overflow-y-auto" style="max-height: calc(100vh - 320px);">
         <div class="sheet-handle" data-sheet="library" role="separator" aria-label="Drag down to close the object library"></div>
         <div id="libraryHeader" onclick="toggleObjectLibrary()" class="px-1 flex items-center justify-between cursor-pointer select-none text-[10px] font-semibold uppercase tracking-wider text-slate-500">
@@ -240,6 +254,7 @@
           <button id="btnConnectNodes" onclick="toggleConnectMode()" aria-pressed="false" title="Chain connections; press Esc or click the canvas background to stop" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">🪄 Connect Wand</button>
           <button id="btnDisconnectNodes" onclick="toggleDisconnectMode()" aria-pressed="false" title="Remove connections; press Esc or click the canvas background to stop" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">✂️ Disconnect Wand</button>
           <button id="btnClusterWand" onclick="toggleClusterEditMode()" aria-pressed="false" title="Select and edit subgraph containers" class="col-span-2 text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">✨ Cluster Wand</button>
+          <button id="btnAreaSelect" onclick="toggleAreaSelect()" aria-pressed="false" title="Drag an empty area to select nodes; drag again to replace the selection" class="col-span-2 text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">Select Area</button>
         </div>
         <details open class="border-b border-slate-800 pb-1">
           <summary class="cursor-pointer select-none px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">🏢 Process &amp; Inventory</summary>
@@ -289,6 +304,7 @@
             <button onclick="addLibraryNode('shape-triangle')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Triangle</button>
             <button onclick="addLibraryNode('shape-hexagon')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Hexagon</button>
             <button onclick="addLibraryNode('shape-cylinder')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Cylinder</button>
+            <button onclick="addLibraryNode('shape-parallelogram')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Parallelogram</button>
           </div>
         </details>
         </div>
@@ -431,6 +447,7 @@
                 <option value="hexagon">Hexagon {{ }}</option>
                 <option value="circle">Circle (( ))</option>
                 <option value="triangle">Triangle</option>
+                <option value="parallelogram">Parallelogram [/ /]</option>
                 <option value="custom" disabled hidden>Custom (keep existing)</option>
                 </optgroup>
                 <optgroup label="VSM Shapes">
@@ -581,6 +598,15 @@
         if (!isObj(p) || !Number.isFinite(Number(p.x)) || !Number.isFinite(Number(p.y))) delete pos[id];
         else pos[id] = { x: Number(p.x), y: Number(p.y) };
       });
+      const clusterPositions = projectState.clusterPositions = isObj(projectState.clusterPositions) ? projectState.clusterPositions : {};
+      Object.entries(clusterPositions).forEach(([id, p]) => {
+        if (!isObj(p) || !Number.isFinite(Number(p.x)) || !Number.isFinite(Number(p.y))) delete clusterPositions[id];
+        else clusterPositions[id] = { x: Number(p.x), y: Number(p.y) };
+      });
+      if (!isObj(projectState.autoFitClusters)) projectState.autoFitClusters = {};
+      Object.keys(projectState.autoFitClusters).forEach(id => {
+        if (projectState.autoFitClusters[id] !== true) delete projectState.autoFitClusters[id];
+      });
       normalizeNotes();
     }
 
@@ -598,7 +624,7 @@
     // Switching projects must not leave an inspector or connect session pointing at the previous diagram.
     // Loading new content (template, file, URL, Clear) also schedules a metrics cleanup for the next render.
     let pruneMetricsOnRender = false, activeNoteId = null, activeClusterId = null;
-    function resetInteractionState() { pendingConnectionPositions = null; clearTimeout(renderTimeout); pruneMetricsOnRender = true; closeInspector(); if (connectArmed || disconnectArmed) disarmWands(); }
+    function resetInteractionState() { pendingConnectionPositions = null; pendingClusterPositions = null; clearTimeout(renderTimeout); pruneMetricsOnRender = true; clearMultiSelection(); setAreaSelect(false); closeInspector(); if (connectArmed || disconnectArmed) disarmWands(); }
     let panZoomInstance = null, renderTimeout = null, renderSequence = 0, activeNodeId = null, activeEdge = null;
     const mermaidCodeInput = document.getElementById('mermaidCode');
     const mermaidRender = document.getElementById('mermaidRender');
@@ -612,7 +638,7 @@
     let workspaceSavingBlocked = false, lastSavedWorkspace = null;
 
     function blankProject() {
-      return { title: 'Blank Canvas', mermaid: '', metrics: {}, positions: {}, notes: {}, styles: {}, dimensions: {}, edges: {}, selectedNode: null, settings: { autoOpenInspector: false } };
+      return { title: 'Blank Canvas', mermaid: '', metrics: {}, positions: {}, clusterPositions: {}, autoFitClusters: {}, notes: {}, styles: {}, dimensions: {}, edges: {}, selectedNode: null, settings: { autoOpenInspector: false } };
     }
 
     function workspaceWarning(message, error) {
@@ -629,6 +655,7 @@
       projectState.mermaid = mermaidCodeInput.value;
       tab.state = projectState;
       tab.pendingPositions = pendingConnectionPositions;
+      tab.pendingClusterPositions = pendingClusterPositions;
     }
 
     function saveWorkspace() {
@@ -713,6 +740,7 @@
       canvasGeneration++;
       projectState = tab.state;
       pendingConnectionPositions = tab.pendingPositions || null;
+      pendingClusterPositions = tab.pendingClusterPositions || null;
       normalizePositions();
       mermaidCodeInput.value = projectState.mermaid;
       updateLineNumbers(); renderCanvasTabs(); renderDiagram(); calculateVSMMetrics(); saveWorkspace();
@@ -756,6 +784,7 @@
       }
       renderCanvasTabs();
       pendingConnectionPositions = canvasTabs.find(t => t.id === activeCanvasId).pendingPositions || null;
+      pendingClusterPositions = canvasTabs.find(t => t.id === activeCanvasId).pendingClusterPositions || null;
       if (!loadStateFromURL()) { updateLineNumbers(); renderDiagram(); }
       saveWorkspace();
       setInterval(saveWorkspace, 1000);
@@ -822,7 +851,7 @@
         if (suppressWandClick) { suppressWandClick = false; return; }
         if (dragMoved) { dragMoved = false; return; }
         const noteEl = e.target.closest('g.process-note');
-        if (noteEl && !connectArmed && !disconnectArmed) { openNoteEditor(noteEl.dataset.noteId); return; }
+        if (noteEl && !connectArmed && !disconnectArmed) { clearMultiSelection(); openNoteEditor(noteEl.dataset.noteId); return; }
         if (disconnectArmed) {
           const nodeEl = e.target.closest('.node, g.nodes > g');
           const edgeEl = e.target.closest('.edgePath, .edgeLabel, g.edgePaths path, g.edgeLabels');
@@ -838,7 +867,7 @@
         const msgEl = e.target.closest('g.messageLine0, g.messageLine1, path.messageLine0, path.messageLine1, .messageLine0, .messageLine1, .messageText, g[class*="message"], .edge-hit[data-msg-index]');
         if (msgEl && openSequenceMessageInspector(msgEl)) return;
         const edgeEl = e.target.closest('.edgePath, .edgeLabel, g.edgePaths path, g.edgeLabels');
-        if (edgeEl && openEdgeInspectorFromElement(edgeEl)) return;
+        if (edgeEl && openEdgeInspectorFromElement(edgeEl)) { clearMultiSelection(); return; }
         const actorEl = e.target.closest('.actor, g.actor, text.actor, svg path[class*="actor"], g.actor-man, line[id^="actor"]');
         if (actorEl) {
           const actorId = resolveSequenceActorId(actorEl);
@@ -852,6 +881,17 @@
           if (targetEl.matches('g.nodes > g') && !targetEl.id && !targetEl.matches('.node, .role, .stateGroup')) return;
           let nodeId = (targetEl.id || '').replace(/^(flowchart|actor|state)-/, '').replace(/-\d+$/, '');
           if (!nodeId) nodeId = targetEl.getAttribute('name') || targetEl.querySelector('text, tspan')?.textContent?.trim() || '';
+          if (nodeId && nodeIndex[nodeId] && diagramKind(mermaidCodeInput.value) === 'flow') {
+            if (e.shiftKey) {
+              if (!multiSelection.size && activeNodeId && nodeIndex[activeNodeId]) multiSelection.add(activeNodeId);
+              closeInspector();
+              if (multiSelection.has(nodeId)) multiSelection.delete(nodeId); else multiSelection.add(nodeId);
+              updateMultiSelection();
+              updateStatus(`${multiSelection.size} nodes selected`, 'emerald');
+              return;
+            }
+            clearMultiSelection();
+          }
           if (nodeId) openInspector(nodeId);
         }
       });
@@ -946,7 +986,9 @@
       if (!code) {
         if (panZoomInstance) { panZoomInstance.destroy(); panZoomInstance = null; }
         nodeIndex = {}; edgeIndex = [];
+        clusterMembership = []; clusterMembershipCode = ''; multiSelection.clear(); setAreaSelect(false);
         mermaidRender.innerHTML = '<p class="text-xs text-slate-500 font-mono">Open a project file or select a template to begin.</p>';
+        updateMultiSelection();
         document.getElementById('nodeCount').textContent = 'Nodes: 0';
         updateStatus('Ready', 'emerald'); dismissError(); return;
       }
@@ -958,7 +1000,15 @@
         if (sequence !== renderSequence || code !== mermaidCodeInput.value.trim()) return;
         const id = 'mermaid-svg-' + Date.now();
         const { svg } = await mermaid.render(id, standaloneRenderCode(code));
+        const diagram = diagramKind(code) === 'flow' ? await mermaid.mermaidAPI.getDiagramFromText(code) : null;
         if (sequence !== renderSequence || code !== mermaidCodeInput.value.trim()) return;
+        clusterMembership = diagram ? diagram.db.getSubGraphs().map(group => ({ id: group.id, nodes: [...group.nodes] })) : [];
+        clusterMembershipCode = code;
+        if (diagram) {
+          const clusterIds = new Set(clusterMembership.map(group => group.id));
+          Object.keys(projectState.autoFitClusters || {}).forEach(id => { if (!clusterIds.has(id)) delete projectState.autoFitClusters[id]; });
+        }
+        if (!diagram) { multiSelection.clear(); setAreaSelect(false); }
         mermaidRender.innerHTML = svg;
         dismissError(); updateStatus('Rendered', 'emerald');
         const svgElement = mermaidRender.querySelector('svg');
@@ -982,6 +1032,9 @@
           }
           applyStoredPositions();
           applyStoredDimensions();
+          applyClusterPositions();
+          fitAutoClusters();
+          updateMultiSelection();
           applyIconPrimitiveStyles();
           addSymbolTouchHits();
           const flowEdges = parseMermaidEdges(code);
@@ -1011,6 +1064,7 @@
             if (pendingConnectionPositions || e.visualStyle === 'electronic' || [e.src, e.tgt].some(id => nodeIndex[id]?.foreignObject?.querySelector('[data-icon]') || ['triangle', 'hexagon'].includes(parseNodeDefinition(code, id)?.shape))) routeEdge(e);
           });
           pendingConnectionPositions = null;
+          pendingClusterPositions = null;
           renderNotes();
           renderResizeOverlay();
           highlightCluster();
@@ -1031,8 +1085,9 @@
     // ---- Phase 7: node dragging, elastic connector routing, gooey anchors ----
     const SVG_NS = 'http://www.w3.org/2000/svg';
     const TRANSLATE_RE = /translate\(\s*(-?[\d.eE+-]+)[\s,]+(-?[\d.eE+-]+)\s*\)/;
-    let nodeIndex = {}, edgeIndex = [], drag = null, dragMoved = false, socketLayer = null;
-    let pendingConnectionPositions = null;
+    let nodeIndex = {}, edgeIndex = [], drag = null, dragMoved = false, socketLayer = null, clusterMembership = [], clusterMembershipCode = '';
+    let multiSelection = new Set(), areaSelectArmed = false;
+    let pendingConnectionPositions = null, pendingClusterPositions = null;
 
     function diagramCoordinateRoot() {
       const svg = mermaidRender.querySelector('svg');
@@ -1049,6 +1104,13 @@
         if (!matrix) return [];
         const point = new DOMPoint(0, 0).matrixTransform(inverse.multiply(matrix));
         return [[id, { x: point.x, y: point.y }]];
+      }));
+      pendingClusterPositions = Object.fromEntries([...mermaidRender.querySelectorAll('g.cluster')].flatMap(cluster => {
+        if (!projectState.clusterPositions?.[cluster.id]) return [];
+        const rect = cluster.querySelector(':scope > rect'), matrix = rect?.getCTM();
+        if (!rect || !matrix) return [];
+        const box = rect.getBBox(), point = new DOMPoint(box.x, box.y).matrixTransform(inverse.multiply(matrix));
+        return [[cluster.id, { x: point.x, y: point.y }]];
       }));
     }
 
@@ -1510,6 +1572,147 @@
       return g ? (g.id.match(NODE_DOM_ID_RE) || [])[1] || null : null;
     }
 
+    function updateMultiSelection() {
+      mermaidRender.querySelectorAll('.multi-selection').forEach(el => el.remove());
+      for (const id of [...multiSelection]) {
+        const n = nodeIndex[id];
+        if (!n || !n.el.isConnected) { multiSelection.delete(id); continue; }
+        const b = n.el.getBBox(), outline = document.createElementNS(SVG_NS, 'rect');
+        outline.setAttribute('class', 'multi-selection');
+        outline.setAttribute('x', b.x - 4); outline.setAttribute('y', b.y - 4);
+        outline.setAttribute('width', b.width + 8); outline.setAttribute('height', b.height + 8);
+        n.el.appendChild(outline);
+      }
+      const toolbar = document.getElementById('selectionToolbar');
+      toolbar.hidden = multiSelection.size < 2;
+      if (toolbar.hidden) cancelGroupSelected();
+      document.getElementById('selectionCount').textContent = `${multiSelection.size} nodes`;
+    }
+
+    function clearMultiSelection() { multiSelection.clear(); updateMultiSelection(); }
+
+    function setAreaSelect(enabled) {
+      areaSelectArmed = enabled;
+      const button = document.getElementById('btnAreaSelect');
+      button.setAttribute('aria-pressed', String(enabled));
+      button.classList.toggle('bg-emerald-700', enabled);
+      button.classList.toggle('border-emerald-500', enabled);
+    }
+
+    function toggleAreaSelect() {
+      if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Area selection works on flowcharts only', 'amber'); return; }
+      if (!areaSelectArmed) {
+        if (clusterEditMode) { if (activeClusterId) closeInspector(); else disarmClusterEditMode(); }
+        if (connectArmed || disconnectArmed) disarmWands();
+      }
+      setAreaSelect(!areaSelectArmed);
+      updateStatus(areaSelectArmed ? 'Area select: drag empty canvas to select nodes' : 'Pointer mode active', 'emerald');
+    }
+
+    function startMarquee(e) {
+      const root = diagramCoordinateRoot(), start = root && svgPointFor(root, e);
+      if (!start) return;
+      const rect = document.createElementNS(SVG_NS, 'rect');
+      rect.setAttribute('class', 'selection-marquee');
+      root.appendChild(rect);
+      e.preventDefault(); e.stopPropagation();
+      drag = { kind: 'marquee', el: rect, parent: root, start, sx: e.clientX, sy: e.clientY, active: false, pointerId: e.pointerId, additive: e.shiftKey };
+      if (panZoomInstance) panZoomInstance.disablePan();
+      window.addEventListener('pointermove', onNodeDragMove);
+      window.addEventListener('pointerup', endNodeDrag);
+      window.addEventListener('pointercancel', endNodeDrag);
+      window.addEventListener('pointerdown', onExtraPointerDown, true);
+    }
+
+    function clusterContents(id) {
+      const groups = new Map(clusterMembership.map(group => [group.id, group.nodes]));
+      const nodes = new Set(), clusters = new Set();
+      function visit(groupId) {
+        if (clusters.has(groupId)) return;
+        clusters.add(groupId);
+        for (const child of groups.get(groupId) || []) {
+          if (groups.has(child)) visit(child);
+          else if (nodeIndex[child]) nodes.add(child);
+        }
+      }
+      if (!groups.has(id)) return null;
+      visit(id);
+      return { nodes: [...nodes], clusters: [...clusters] };
+    }
+
+    function fitAutoClusters() {
+      for (const id of Object.keys(projectState.autoFitClusters || {})) {
+        const cluster = [...mermaidRender.querySelectorAll('g.cluster')].find(el => el.id === id);
+        const rect = cluster?.querySelector(':scope > rect'), matrix = cluster?.getCTM();
+        const contents = clusterContents(id);
+        if (!rect || !matrix || !contents?.nodes.length) continue;
+        const inverse = matrix.inverse(), points = [];
+        for (const nodeId of contents.nodes) {
+          const n = nodeIndex[nodeId], m = n?.el.getCTM();
+          if (!m) continue;
+          const box = n.box, transform = inverse.multiply(m);
+          for (const x of [box.x, box.x + box.width]) for (const y of [box.y, box.y + box.height]) points.push(new DOMPoint(x, y).matrixTransform(transform));
+        }
+        if (!points.length) continue;
+        const label = cluster.querySelector(':scope > .cluster-label'), labelBox = label?.getBBox();
+        let left = Math.min(...points.map(p => p.x)) - 24, right = Math.max(...points.map(p => p.x)) + 24;
+        const top = Math.min(...points.map(p => p.y)) - Math.max(40, (labelBox?.height || 0) + 16);
+        const bottom = Math.max(...points.map(p => p.y)) + 24;
+        const labelWidth = (labelBox?.width || 0) + 24;
+        if (right - left < labelWidth) { const extra = (labelWidth - (right - left)) / 2; left -= extra; right += extra; }
+        rect.setAttribute('x', left); rect.setAttribute('y', top);
+        rect.setAttribute('width', right - left); rect.setAttribute('height', bottom - top);
+        if (label) label.setAttribute('transform', `translate(${(left + right - (labelBox?.width || 0)) / 2}, ${top + 4})`);
+      }
+      if (activeClusterId && projectState.autoFitClusters?.[activeClusterId]) highlightCluster();
+    }
+
+    function applyClusterPositions() {
+      const root = diagramCoordinateRoot(), rootMatrix = root?.getCTM();
+      if (!rootMatrix) return;
+      mermaidRender.querySelectorAll('g.cluster').forEach(cluster => {
+        if (!cluster.hasAttribute('data-base-transform')) cluster.setAttribute('data-base-transform', cluster.getAttribute('transform') || '');
+        let pos = projectState.clusterPositions?.[cluster.id];
+        const parentMatrix = cluster.parentNode.getCTM();
+        if (!parentMatrix) return;
+        const matrix = parentMatrix.inverse().multiply(rootMatrix);
+        const origin = new DOMPoint(0, 0).matrixTransform(matrix);
+        const apply = () => {
+          const point = new DOMPoint(pos?.x || 0, pos?.y || 0).matrixTransform(matrix);
+          cluster.setAttribute('transform', `translate(${point.x - origin.x}, ${point.y - origin.y}) ${cluster.getAttribute('data-base-transform')}`);
+        };
+        apply();
+        const preserved = pendingClusterPositions?.[cluster.id], rect = cluster.querySelector(':scope > rect'), rectMatrix = rect?.getCTM();
+        if (preserved && rect && rectMatrix) {
+          const box = rect.getBBox(), current = new DOMPoint(box.x, box.y).matrixTransform(rootMatrix.inverse().multiply(rectMatrix));
+          pos = projectState.clusterPositions[cluster.id] = { x: (pos?.x || 0) + preserved.x - current.x, y: (pos?.y || 0) + preserved.y - current.y };
+          apply();
+        }
+      });
+    }
+
+    function startClusterDrag(e, cluster) {
+      if (mermaidCodeInput.value.trim() !== clusterMembershipCode) { updateStatus('Wait for the diagram to finish rendering before moving a subgraph', 'amber'); return; }
+      const contents = clusterContents(cluster.id), root = diagramCoordinateRoot();
+      if (!contents || !root) { updateStatus('Cannot determine subgraph membership; render the diagram again', 'amber'); return; }
+      const start = svgPointFor(root, e);
+      if (!start) return;
+      const nodes = contents.nodes.map(id => {
+        const n = nodeIndex[id], point = svgPointFor(n.el.parentNode, e);
+        return point && { id, n, start: point, x: n.x, y: n.y };
+      });
+      if (nodes.some(n => !n)) { updateStatus('Cannot move subgraph: node coordinates are unavailable', 'amber'); return; }
+      const clusters = contents.clusters.map(id => ({ id, pos: { ...(projectState.clusterPositions?.[id] || { x: 0, y: 0 }) } }));
+      openClusterInspector(cluster.id);
+      if (activeClusterId !== cluster.id) return;
+      drag = { kind: 'cluster', el: cluster, parent: root, start, nodes, clusters, sx: e.clientX, sy: e.clientY, active: false, pointerId: e.pointerId };
+      if (panZoomInstance) panZoomInstance.disablePan();
+      window.addEventListener('pointermove', onNodeDragMove);
+      window.addEventListener('pointerup', endNodeDrag);
+      window.addEventListener('pointercancel', endNodeDrag);
+      window.addEventListener('pointerdown', onExtraPointerDown, true);
+    }
+
     function onExtraPointerDown(e) { if (drag && e.pointerId !== drag.pointerId) endNodeDrag(); }
 
     function startNodeDrag(e) {
@@ -1521,6 +1724,11 @@
       const noteEl = e.target.closest?.('g.process-note');
       if (noteEl) { startNoteDrag(e, noteEl); return; }
       const id = cleanNodeId(e.target);
+      const cluster = e.target.closest?.('g.cluster');
+      if (clusterEditMode && cluster && !id) { startClusterDrag(e, cluster); return; }
+      if (!clusterEditMode && diagramKind(mermaidCodeInput.value) === 'flow' && !id && (areaSelectArmed || e.shiftKey) &&
+          !e.target.closest?.('.edgePath, .edgeLabel, .edge-hit, g.process-note')) { startMarquee(e); return; }
+      if (e.shiftKey && id && nodeIndex[id]) return;
       if (!id || !nodeIndex[id] || !nodeIndex[id].el.contains(e.target)) return;
       const el = nodeIndex[id].el;
       // The node's parent CTM already includes the pan/zoom viewport transform.
@@ -1578,6 +1786,30 @@
       e.preventDefault();
       const p = svgPointFor(drag.parent, e);
       if (!p) return;
+      if (drag.kind === 'marquee') {
+        drag.el.setAttribute('x', Math.min(p.x, drag.start.x)); drag.el.setAttribute('y', Math.min(p.y, drag.start.y));
+        drag.el.setAttribute('width', Math.abs(p.x - drag.start.x)); drag.el.setAttribute('height', Math.abs(p.y - drag.start.y));
+        return;
+      }
+      if (drag.kind === 'cluster') {
+        projectState.positions = projectState.positions || {};
+        projectState.clusterPositions = projectState.clusterPositions || {};
+        for (const item of drag.nodes) {
+          const point = svgPointFor(item.n.el.parentNode, e);
+          if (!point) continue;
+          item.n.x = item.x + point.x - item.start.x;
+          item.n.y = item.y + point.y - item.start.y;
+          item.n.el.setAttribute('transform', `translate(${item.n.x}, ${item.n.y})`);
+          projectState.positions[item.id] = { x: item.n.x - item.n.baseX, y: item.n.y - item.n.baseY };
+        }
+        for (const item of drag.clusters) projectState.clusterPositions[item.id] = { x: item.pos.x + p.x - drag.start.x, y: item.pos.y + p.y - drag.start.y };
+        applyClusterPositions();
+        fitAutoClusters();
+        drag.nodes.forEach(item => updateNotesForNode(item.id));
+        const moved = new Set(drag.nodes.map(item => item.id));
+        edgeIndex.forEach(edge => { if (moved.has(edge.src) || moved.has(edge.tgt)) routeEdge(edge); });
+        return;
+      }
       if (drag.kind === 'note') {
         const note = projectState.notes?.[drag.id];
         if (!note) return;
@@ -1603,6 +1835,7 @@
         };
         updateNodeConnections(drag.id);
         updateNotesForNode(drag.id);
+        fitAutoClusters();
         updateResizeOverlay();
         if (projectState.selectedNode === drag.id) {
           document.getElementById('inspectorNodeWidth').value = String(Math.round(width));
@@ -1615,6 +1848,7 @@
       n.el.setAttribute('transform', `translate(${n.x}, ${n.y})`);
       drawSockets(updateNodeConnections(drag.id), drag.parent);
       updateNotesForNode(drag.id);
+      fitAutoClusters();
     }
 
     function endNodeDrag(e) {
@@ -1623,10 +1857,23 @@
       window.removeEventListener('pointerup', endNodeDrag);
       window.removeEventListener('pointercancel', endNodeDrag);
       window.removeEventListener('pointerdown', onExtraPointerDown, true);
-      if (drag.active && drag.kind === 'note') {
+      if (drag.kind === 'marquee') {
+        if (drag.active && e?.type !== 'pointercancel') {
+          const box = drag.el.getBoundingClientRect();
+          if (!drag.additive) multiSelection.clear();
+          closeInspector();
+          Object.entries(nodeIndex).forEach(([id, n]) => {
+            const b = n.el.getBoundingClientRect();
+            if (b.right >= box.left && b.left <= box.right && b.bottom >= box.top && b.top <= box.bottom) multiSelection.add(id);
+          });
+          drag.el.remove();
+          updateMultiSelection();
+          updateStatus(`${multiSelection.size} nodes selected`, 'emerald');
+        } else drag.el.remove();
+      } else if (drag.active && drag.kind === 'note') {
         const note = projectState.notes?.[drag.id];
         if (note) note.offset = { x: Math.round(note.offset.x), y: Math.round(note.offset.y) };
-      } else if (drag.active && drag.kind !== 'resize') {
+      } else if (drag.active && drag.kind !== 'resize' && drag.kind !== 'cluster') {
         projectState.positions = projectState.positions || {};
         const pos = { x: Math.round((drag.n.x - drag.n.baseX) * 10) / 10, y: Math.round((drag.n.y - drag.n.baseY) * 10) / 10 };
         if (pos.x || pos.y) projectState.positions[drag.id] = pos; else delete projectState.positions[drag.id];
@@ -1891,6 +2138,7 @@
         'shape-triangle': { base: 'NewTriangle', def: id => `${id}["Inventory Triangle"]`, m: { title: 'Inventory Triangle', owner: '', wip: 0, shape: 'triangle' } },
         'shape-hexagon': { base: 'NewHexagon', def: id => `${id}{{"New Process"}}`, m: { title: 'New Process', owner: '', wip: 0, shape: 'hexagon' } },
         'shape-cylinder': { base: 'NewCylinder', def: id => `${id}[("MRP / Database")]`, m: { title: 'MRP / Database', owner: '', wip: 0, shape: 'cylinder' } },
+        'shape-parallelogram': { base: 'NewParallelogram', def: id => `${id}[/"New Process"/]`, m: { title: 'New Process', owner: '', wip: 0, shape: 'parallelogram' } },
         'double-diamond': { base: 'NewDoubleDiamond', def: id => `${id}{"Double Diamond"}`, m: { title: 'Double Diamond', owner: '', wip: 0, shape: 'diamond', doubleBorder: true } },
         'double-rounded': { base: 'NewDoubleRounded', def: id => `${id}("Double Rounded")`, m: { title: 'Double Rounded', owner: '', wip: 0, shape: 'rounded', doubleBorder: true } },
         'double-circle': { base: 'NewDoubleCircle', def: id => `${id}(("Double Circle"))`, m: { title: 'Double Circle', owner: '', wip: 0, shape: 'circle', doubleBorder: true } },
@@ -2110,6 +2358,7 @@
         return;
       }
       if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Cluster Wand works on flowcharts only', 'amber'); return; }
+      setAreaSelect(false); clearMultiSelection();
       if (connectArmed || disconnectArmed) disarmWands();
       clusterEditMode = true;
       mermaidRender.classList.add('cluster-edit-mode');
@@ -2160,6 +2409,7 @@
     function toggleConnectMode() {
       if (connectArmed) { updateStatus('Connect mode active: click the canvas background or press Esc to stop', 'emerald'); return; }
       if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Connect Nodes works on flowcharts only', 'amber'); return; }
+      setAreaSelect(false); clearMultiSelection();
       if (clusterEditMode) { if (activeClusterId) closeInspector(); else disarmClusterEditMode(); }
       if (disconnectArmed) disarmDisconnectMode();
       connectArmed = true; connectSourceNodeId = null;
@@ -2172,6 +2422,7 @@
     function toggleDisconnectMode() {
       if (disconnectArmed) { updateStatus('Disconnect mode active: click the canvas background or press Esc to stop', 'emerald'); return; }
       if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Disconnect Wand works on flowcharts only', 'amber'); return; }
+      setAreaSelect(false); clearMultiSelection();
       if (clusterEditMode) { if (activeClusterId) closeInspector(); else disarmClusterEditMode(); }
       if (connectArmed) disarmConnectMode();
       disconnectArmed = true; disconnectSourceNodeId = null;
@@ -2351,6 +2602,7 @@
       if (!applyNodeDimensions(activeNodeId, width, height)) return;
       updateNodeConnections(activeNodeId);
       updateNotesForNode(activeNodeId);
+      fitAutoClusters();
       updateResizeOverlay();
     }
 
@@ -2410,6 +2662,14 @@
       return m ? { label: (m[2] ?? m[3] ?? id).trim() || id } : null;
     }
 
+    function encodeSubgraphTitle(title) {
+      return title.replace(/&/g, '#amp;').replace(/</g, '#lt;').replace(/>/g, '#gt;').replace(/"/g, '#quot;');
+    }
+
+    function decodeSubgraphTitle(title) {
+      return title.replace(/#quot;/g, '"').replace(/#lt;/g, '<').replace(/#gt;/g, '>').replace(/#amp;/g, '&');
+    }
+
     function subgraphBlocks(code) {
       const lines = code.split('\n'), stack = [], blocks = [];
       for (let i = 0; i < lines.length; i++) {
@@ -2424,7 +2684,7 @@
           const explicit = block.declaration.match(/^([\w-]+)(?:[ \t]*\[(.*)\])?$/);
           block.id = explicit ? explicit[1] : `subGraph${blocks.length}`;
           block.label = explicit ? (explicit[2] ?? explicit[1]) : block.declaration;
-          block.label = block.label.replace(/^"(.*)"$/, '$1').replace(/#quot;/g, '"');
+          block.label = decodeSubgraphTitle(block.label.replace(/^"(.*)"$/, '$1'));
           block.implicit = !explicit;
           blocks.push(block);
         }
@@ -2432,6 +2692,111 @@
       if (stack.length) throw new Error('Unclosed or unsupported subgraph block.');
       if (new Set(blocks.map(block => block.id)).size !== blocks.length) throw new Error('Duplicate subgraph IDs cannot be edited safely.');
       return { lines, blocks };
+    }
+
+    function stableDiagramValue(value) {
+      if (Array.isArray(value)) return value.map(stableDiagramValue);
+      if (!value || typeof value !== 'object') return value;
+      return Object.fromEntries(Object.keys(value).filter(key => key !== 'domId').sort().map(key => [key, stableDiagramValue(value[key])]));
+    }
+
+    function flowDiagramSnapshot(db) {
+      return {
+        vertices: stableDiagramValue(db.getVertices()),
+        edges: stableDiagramValue(db.getEdges()),
+        groups: db.getSubGraphs().map(group => ({ id: group.id, nodes: [...group.nodes] }))
+      };
+    }
+
+    function beginGroupSelected() {
+      document.getElementById('groupSelectedBtn').hidden = true;
+      document.getElementById('groupTitleForm').hidden = false;
+      const title = document.getElementById('groupTitle');
+      title.value = 'New Department'; title.focus(); title.select();
+    }
+
+    function cancelGroupSelected() {
+      document.getElementById('groupTitleForm').hidden = true;
+      document.getElementById('groupSelectedBtn').hidden = false;
+    }
+
+    function submitGroupSelected(event) {
+      event.preventDefault();
+      groupSelectedNodes(document.getElementById('groupTitle').value);
+    }
+
+    async function groupSelectedNodes(title) {
+      const ids = [...multiSelection], code = mermaidCodeInput.value, generation = canvasGeneration;
+      if (ids.length < 2) return;
+      if (code.trim() !== clusterMembershipCode || pendingConnectionPositions) {
+        updateStatus('Wait for the diagram to finish rendering before grouping', 'amber'); return;
+      }
+      const cleanTitle = title.trim().replace(/[\r\n]+/g, ' ');
+      if (!cleanTitle) { updateStatus('Subgraph title cannot be empty', 'amber'); return; }
+      const button = document.querySelector('#groupTitleForm button[type="submit"]');
+      button.disabled = true;
+      try {
+        const parsed = subgraphBlocks(code);
+        const header = parsed.lines.findIndex(line => /^\s*(?:graph|flowchart)\s+(?:TB|TD|BT|RL|LR)\s*;?\s*$/i.test(line));
+        if (header < 0) throw new Error('Grouping requires a graph declaration on its own line.');
+        const original = flowDiagramSnapshot((await mermaid.mermaidAPI.getDiagramFromText(code)).db);
+        if (ids.some(id => !Object.hasOwn(original.vertices, id))) throw new Error('A selected node no longer exists.');
+        const used = new Set([...Object.keys(original.vertices), ...original.groups.map(group => group.id)]);
+        let number = 1;
+        while (used.has(`subGraph${number}`)) number++;
+        const groupId = `subGraph${number}`;
+        const replacements = ids.map(id => {
+          const definition = findNodeDefs(code, id)[0];
+          return { id, definition, text: definition ? code.slice(definition.start, definition.end) : id };
+        });
+        let next = code;
+        for (const item of replacements.filter(item => item.definition).sort((a, b) => b.definition.start - a.definition.start)) {
+          next = next.slice(0, item.definition.start) + item.id + next.slice(item.definition.end);
+        }
+        const rewritten = subgraphBlocks(next);
+        rewritten.blocks.filter(block => block.implicit).forEach(block => {
+          rewritten.lines[block.start] = `${block.indent}subgraph ${block.id} ["${encodeSubgraphTitle(block.label)}"]`;
+        });
+        const escapedTitle = encodeSubgraphTitle(cleanTitle);
+        rewritten.lines.splice(header + 1, 0, `    subgraph ${groupId} ["${escapedTitle}"]`, ...replacements.map(item => `        ${item.text}`), '    end');
+        next = rewritten.lines.join('\n');
+        const result = flowDiagramSnapshot((await mermaid.mermaidAPI.getDiagramFromText(next)).db);
+        if (JSON.stringify(original.vertices) !== JSON.stringify(result.vertices) || JSON.stringify(original.edges) !== JSON.stringify(result.edges)) {
+          throw new Error('The diagram uses node syntax that cannot be regrouped safely; edit the Mermaid code manually.');
+        }
+        const selected = new Set(ids), newGroup = result.groups.find(group => group.id === groupId);
+        if (!newGroup || newGroup.nodes.length !== ids.length || newGroup.nodes.some(id => !selected.has(id))) throw new Error('Mermaid could not reparent the selected nodes safely.');
+        for (const group of original.groups) {
+          const actual = result.groups.find(item => item.id === group.id);
+          const expected = group.nodes.filter(id => !selected.has(id)).sort();
+          if (!actual || JSON.stringify([...actual.nodes].sort()) !== JSON.stringify(expected)) throw new Error('Grouping would change another subgraph unexpectedly.');
+        }
+        const preview = await mermaid.render(`vsm-group-check-${Date.now()}`, standaloneRenderCode(next));
+        const previewDoc = new DOMParser().parseFromString(preview.svg, 'image/svg+xml');
+        if (![...previewDoc.querySelectorAll('g.cluster')].some(element => element.id === groupId)) throw new Error('Mermaid could not render the new subgraph.');
+        if (generation !== canvasGeneration || code !== mermaidCodeInput.value || ids.length !== multiSelection.size || ids.some(id => !multiSelection.has(id))) {
+          updateStatus('Canvas changed while grouping; select the nodes and retry', 'amber'); return;
+        }
+        preserveConnectionPositions();
+        if (!pendingConnectionPositions || ids.some(id => !pendingConnectionPositions[id])) {
+          pendingConnectionPositions = null; pendingClusterPositions = null;
+          throw new Error('Node coordinates are unavailable; grouping was cancelled.');
+        }
+        projectState.autoFitClusters = projectState.autoFitClusters || {};
+        projectState.autoFitClusters[groupId] = true;
+        mermaidCodeInput.value = projectState.mermaid = next;
+        clearMultiSelection(); setAreaSelect(false); updateLineNumbers();
+        await renderDiagram();
+        if (clusterMembershipCode !== next.trim() || !document.getElementById('errorBanner').classList.contains('hidden')) {
+          throw new Error('Grouping was saved, but the updated diagram could not be rendered.');
+        }
+        updateStatus(`Grouped ${ids.length} nodes into ${cleanTitle}`, 'emerald');
+      } catch (err) {
+        console.error('Cannot group selected nodes:', err);
+        updateStatus(`Cannot group nodes: ${err.message || err}`, 'rose');
+      } finally {
+        button.disabled = false;
+      }
     }
 
     function highlightCluster() {
@@ -2488,7 +2853,7 @@
       catch (err) { updateStatus(`Cannot edit subgraph: ${err.message}`, 'amber'); return; }
       const block = parsed.blocks.find(b => b.id === activeClusterId);
       if (!block) { updateStatus('Subgraph no longer exists in the Mermaid code', 'amber'); return; }
-      const title = document.getElementById('inspectorClusterTitle').value.replace(/\r?\n/g, ' ').replace(/"/g, '#quot;') || activeClusterId;
+      const title = encodeSubgraphTitle(document.getElementById('inspectorClusterTitle').value.replace(/\r?\n/g, ' ') || activeClusterId);
       parsed.lines[block.start] = `${block.indent}subgraph ${block.id} ["${title}"]`;
       preserveConnectionPositions();
       mermaidCodeInput.value = projectState.mermaid = parsed.lines.join('\n');
@@ -2566,7 +2931,7 @@
       }
       // Stabilize anonymous IDs before removing blocks so remaining style and connection references keep their meaning.
       parsed.blocks.filter(b => b.implicit && !(b.start >= block.start && b.end <= block.end && contents) && b !== block).forEach(b => {
-        parsed.lines[b.start] = `${b.indent}subgraph ${b.id} ["${b.label.replace(/"/g, '#quot;')}"]`;
+        parsed.lines[b.start] = `${b.indent}subgraph ${b.id} ["${encodeSubgraphTitle(b.label)}"]`;
       });
       if (contents) parsed.lines.splice(block.start, block.end - block.start + 1);
       else { parsed.lines.splice(block.end, 1); parsed.lines.splice(block.start, 1); }
@@ -2583,7 +2948,7 @@
       preserveConnectionPositions();
       mermaidCodeInput.value = projectState.mermaid = next;
       removedIds.forEach(nodeId => {
-        for (const key of ['metrics', 'positions', 'dimensions', 'styles', 'clusterStyles']) if (projectState[key]) delete projectState[key][nodeId];
+        for (const key of ['metrics', 'positions', 'dimensions', 'styles', 'clusterStyles', 'clusterPositions', 'autoFitClusters']) if (projectState[key]) delete projectState[key][nodeId];
         Object.entries(projectState.notes || {}).forEach(([key, note]) => { if (note.targetId === nodeId) delete projectState.notes[key]; });
       });
       if (contents) Object.entries(projectState.edges || {}).forEach(([key, edge]) => {
@@ -2601,10 +2966,11 @@
       flag:       { open: '>',  close: ']'  },
       hexagon:    { open: '{{', close: '}}' },
       circle:     { open: '((', close: '))' },
+      parallelogram: { open: '[/', close: '/]' },
       triangle:   { open: '[',  close: ']'  }
     };
     // Shapes outside the picker are reported as "custom" and keep their existing brackets.
-    const CUSTOM_SHAPES = [['(((', ')))'], ['[/', '/]'], ['[\\', '\\]'], ['[/', '\\]'], ['[\\', '/]']];
+    const CUSTOM_SHAPES = [['(((', ')))'], ['[\\', '\\]'], ['[/', '\\]'], ['[\\', '/]']];
     // Longest openers first so "([" is not mistaken for "(".
     const SHAPE_DETECT = [
       ...Object.entries(SHAPE_MAP).map(([shape, t]) => [shape, t.open, t.close]),
@@ -3265,13 +3631,15 @@
 
     function validateProjectState(state) {
       if (!isRecord(state) || typeof state.mermaid !== 'string') throw new Error('Canvas is missing Mermaid code.');
-      for (const key of ['metrics', 'positions', 'notes', 'styles', 'dimensions', 'edges', 'clusterStyles', 'settings']) {
+      for (const key of ['metrics', 'positions', 'notes', 'styles', 'dimensions', 'edges', 'clusterStyles', 'clusterPositions', 'autoFitClusters', 'settings']) {
         if (state[key] != null && !isRecord(state[key])) throw new Error(`Invalid canvas ${key}.`);
       }
-      for (const key of ['metrics', 'positions', 'notes', 'styles', 'dimensions', 'edges', 'clusterStyles']) {
+      for (const key of ['metrics', 'positions', 'notes', 'styles', 'dimensions', 'edges', 'clusterStyles', 'clusterPositions']) {
         if (state[key] && Object.values(state[key]).some(value => !isRecord(value))) throw new Error(`Invalid canvas ${key} entry.`);
       }
       if (state.notes && Object.values(state.notes).some(note => typeof note.targetId !== 'string' || !note.targetId)) throw new Error('Invalid note target.');
+      if (state.clusterPositions && Object.values(state.clusterPositions).some(p => !Number.isFinite(p.x) || !Number.isFinite(p.y))) throw new Error('Invalid cluster position.');
+      if (state.autoFitClusters && Object.values(state.autoFitClusters).some(value => value !== true)) throw new Error('Invalid auto-fit cluster.');
     }
 
     function parseProjectFile(text) {
@@ -3288,8 +3656,8 @@
         if (!isRecord(tab) || !Number.isSafeInteger(tab.id) || ids.has(tab.id) || typeof tab.name !== 'string' || !tab.name.trim()) throw new Error('Invalid canvas tab.');
         ids.add(tab.id);
         validateProjectState(tab.state);
-        if (tab.pendingPositions != null) {
-          if (!isRecord(tab.pendingPositions) || Object.values(tab.pendingPositions).some(p => !isRecord(p) || !Number.isFinite(p.x) || !Number.isFinite(p.y))) throw new Error('Invalid pending node positions.');
+        for (const key of ['pendingPositions', 'pendingClusterPositions']) {
+          if (tab[key] != null && (!isRecord(tab[key]) || Object.values(tab[key]).some(p => !isRecord(p) || !Number.isFinite(p.x) || !Number.isFinite(p.y)))) throw new Error(`Invalid ${key}.`);
         }
       }
       if (!ids.has(data.activeTabId)) throw new Error('Project active tab is missing.');
@@ -3306,6 +3674,7 @@
         names.add(name);
         const result = { id: nextCanvasId++, name, state: tab.state };
         if (tab.pendingPositions) result.pendingPositions = tab.pendingPositions;
+        if (tab.pendingClusterPositions) result.pendingClusterPositions = tab.pendingClusterPositions;
         return { savedId: tab.id, tab: result };
       });
       canvasTabs.push(...imported.map(item => item.tab));
@@ -3361,6 +3730,7 @@
         tabs: tabs.map(tab => {
           const saved = { id: tab.id, name: tab.name, state: tab.state };
           if (tab.pendingPositions) saved.pendingPositions = tab.pendingPositions;
+          if (tab.pendingClusterPositions) saved.pendingClusterPositions = tab.pendingClusterPositions;
           return saved;
         })
       };
@@ -3377,7 +3747,7 @@
     async function saveProjectJSON() {
       try {
         endNodeDrag(); syncActiveCanvas();
-        if (pendingConnectionPositions) { alert('A canvas layout update is still pending. Save as .vsm to preserve it.'); return; }
+        if (pendingConnectionPositions || pendingClusterPositions) { alert('A canvas layout update is still pending. Save as .vsm to preserve it.'); return; }
         const blob = new Blob([JSON.stringify(projectState, null, 2)], { type: 'application/json' });
         await saveProjectBlob(blob, `${exportBaseName()}.vsm.json`, '.json');
       } catch (err) { console.error('Could not save project:', err); updateStatus('Project save failed', 'rose'); alert(`Could not save project: ${err.message || err}`); }
@@ -3526,7 +3896,7 @@
     function zoomIn() { if (panZoomInstance) panZoomInstance.zoomIn(); }
     function zoomOut() { if (panZoomInstance) panZoomInstance.zoomOut(); }
     function resetZoom() { if (panZoomInstance) { panZoomInstance.resetZoom(); panZoomInstance.fit(); panZoomInstance.center(); } }
-    function clearCode() { mermaidCodeInput.value = projectState.mermaid = ''; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; projectState.edges = {}; projectState.metrics = {}; projectState.clusterStyles = {}; resetInteractionState(); updateLineNumbers(); renderDiagram(); calculateVSMMetrics(); }
+    function clearCode() { mermaidCodeInput.value = projectState.mermaid = ''; projectState.positions = {}; projectState.clusterPositions = {}; projectState.autoFitClusters = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; projectState.edges = {}; projectState.metrics = {}; projectState.clusterStyles = {}; resetInteractionState(); updateLineNumbers(); renderDiagram(); calculateVSMMetrics(); }
     function formatCode() { mermaidCodeInput.value = mermaidCodeInput.value.split('\n').map(l => l.trimEnd()).join('\n'); updateLineNumbers(); }
     const EXPORT_STYLE_PROPS = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color', 'text-anchor', 'dominant-baseline', 'text-align', 'line-height', 'display', 'padding', 'white-space', 'overflow', 'visibility', 'filter'];
     function exportBaseName() {
@@ -3580,7 +3950,7 @@
         dst.setAttribute('style', css);
       });
       addForeignObjectTextFallback(svg, clone);
-      clone.querySelectorAll('.edge-hit, .symbol-touch-hit, .anchor-socket, .note-sel, .cluster-selection, #resizeOverlay, [id^="gooey"]').forEach(el => el.remove());
+      clone.querySelectorAll('.edge-hit, .symbol-touch-hit, .anchor-socket, .note-sel, .cluster-selection, .multi-selection, .selection-marquee, #resizeOverlay, [id^="gooey"]').forEach(el => el.remove());
       const vp = clone.querySelector('g.svg-pan-zoom_viewport');
       if (vp) vp.removeAttribute('transform'), vp.removeAttribute('style');
       clone.querySelectorAll('.svg-pan-zoom-control').forEach(el => el.remove());
@@ -3712,6 +4082,7 @@
       }
       if (e.key !== 'Escape') return;
       closeSaveMenu();
+      if (areaSelectArmed || multiSelection.size) { setAreaSelect(false); clearMultiSelection(); updateStatus('Selection cleared; pointer mode active', 'emerald'); }
       if (clusterEditMode) { if (activeClusterId) closeInspector(); else disarmClusterEditMode(); updateStatus('Pointer mode active', 'emerald'); }
       if (connectArmed || disconnectArmed) { disarmWands(); updateStatus('Wand mode cancelled', 'emerald'); }
     });
