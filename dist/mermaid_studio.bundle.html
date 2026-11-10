@@ -2170,6 +2170,8 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     .canvas-tab-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #workspaceWarning { padding: 6px 12px; background: #78350f; color: #fef3c7; font-size: 12px; }
     #workspaceWarning[hidden] { display: none; }
+    #fileDropOverlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, .88); border: 4px dashed #60a5fa; color: #e2e8f0; font-size: 1.2rem; pointer-events: none; }
+    #fileDropOverlay[hidden] { display: none; }
     .bg-grid-pattern { background-size: 24px 24px; background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px); }
     /* Expand click targets for nodes and edges */
     #mermaidRender .node,
@@ -2294,15 +2296,15 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     <div id="actionBar" class="flex items-center space-x-1.5 ml-auto">
       <button type="button" id="navAddBtn" onclick="toggleObjectLibrary()" class="mobile-only px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-200 text-xs font-medium items-center"><i data-lucide="plus-square" class="w-4 h-4 text-emerald-400"></i><span>Add</span></button>
       <button type="button" id="navCodeBtn" onclick="toggleEditorPanel()" class="mobile-only px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-200 text-xs font-medium items-center"><i data-lucide="code-2" class="w-4 h-4 text-sky-400"></i><span>Code</span></button>
-      <label class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-slate-200 text-xs font-medium flex items-center space-x-1 cursor-pointer transition">
+      <button type="button" onclick="openProjectFile()" title="Open Project" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-slate-200 text-xs font-medium flex items-center space-x-1 cursor-pointer transition">
         <i data-lucide="folder-open" class="w-3.5 h-3.5 text-amber-400"></i>
-        <span class="hidden sm:inline">Open</span>
-        <input type="file" id="fileInput" accept=".vsm.json,.json,.mmd" class="hidden" onchange="handleFileSelect(event)">
-      </label>
+        <span>Open Project</span>
+      </button>
+      <input type="file" id="fileInput" accept=".vsm,.vsm.json,.json,.mmd,.txt" class="hidden" onchange="handleFileSelect(event)">
       <div class="relative" id="saveMenuWrap">
-        <button id="saveMenuBtn" onclick="toggleSaveMenu(event)" aria-haspopup="menu" aria-expanded="false" title="Save the diagram as an image" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-xs font-medium flex items-center space-x-1 shadow transition">
+        <button id="saveMenuBtn" onclick="toggleSaveMenu(event)" aria-haspopup="menu" aria-expanded="false" title="Save projects or export diagrams" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-xs font-medium flex items-center space-x-1 shadow transition">
           <i data-lucide="image" class="w-3.5 h-3.5"></i>
-          <span>Save Image</span>
+          <span>Save / Export</span>
           <i data-lucide="chevron-down" class="w-3 h-3"></i>
         </button>
         <div id="saveMenu" role="menu" class="hidden absolute right-0 mt-1 w-56 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-50 py-1 text-xs text-slate-200">
@@ -2310,11 +2312,14 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           <button role="menuitem" onclick="closeSaveMenu(); exportSVG()" class="w-full text-left px-3 py-2 hover:bg-slate-800 transition">📐 Export SVG</button>
           <button role="menuitem" onclick="closeSaveMenu(); exportMermaidText()" class="w-full text-left px-3 py-2 hover:bg-slate-800 transition">📄 Export Mermaid Code (.txt)</button>
           <div class="border-t border-slate-800 my-1"></div>
-          <button role="menuitem" onclick="closeSaveMenu(); saveProjectJSON()" class="w-full text-left px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">💾 Project file (.vsm.json)</button>
+          <button role="menuitem" onclick="closeSaveMenu(); saveProjectFile(false)" class="w-full text-left px-3 py-2 hover:bg-slate-800 transition">💾 Save Current Canvas (.vsm)</button>
+          <button role="menuitem" onclick="closeSaveMenu(); saveProjectFile(true)" class="w-full text-left px-3 py-2 hover:bg-slate-800 transition">💾 Save All Tabs (.vsm)</button>
+          <button role="menuitem" onclick="closeSaveMenu(); saveProjectJSON()" class="w-full text-left px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">Legacy canvas file (.vsm.json)</button>
         </div>
       </div>
     </div>
   </header>
+  <div id="fileDropOverlay" hidden>Drop project or Mermaid files to open</div>
   <div id="workspaceWarning" role="alert" hidden></div>
   <div id="canvasTabs" role="tablist" aria-label="Canvas tabs"></div>
   <main id="dropZone" class="flex-1 flex relative overflow-hidden">
@@ -2747,7 +2752,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           lastSavedWorkspace = data;
         }
       } catch (err) {
-        workspaceWarning('Browser autosave is unavailable. Save each canvas as a project file before closing this page.', err);
+        workspaceWarning('Browser autosave is unavailable. Save all tabs as a project file before closing this page.', err);
       }
     }
 
@@ -2872,16 +2877,26 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       });
       window.addEventListener('storage', e => {
         if (e.key === WORKSPACE_KEY && e.newValue !== lastSavedWorkspace) {
-          workspaceWarning('This workspace changed in another browser tab. Autosave is paused here to protect your work; save each canvas as a project file before closing or reloading.');
+          workspaceWarning('This workspace changed in another browser tab. Autosave is paused here to protect your work; save all tabs as a project file before closing or reloading.');
         }
       });
       ['input', 'paste', 'change', 'keyup'].forEach(evt => {
         mermaidCodeInput.addEventListener(evt, () => { projectState.mermaid = mermaidCodeInput.value; updateLineNumbers(); debouncedRender(); });
       });
-      const dropZone = document.getElementById('dropZone');
-      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('bg-blue-950/20'); });
-      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('bg-blue-950/20'));
-      dropZone.addEventListener('drop', handleFileDrop);
+      const fileDropOverlay = document.getElementById('fileDropOverlay');
+      const isFileDrag = e => Array.from(e.dataTransfer?.types || []).includes('Files');
+      window.addEventListener('dragover', e => {
+        if (!isFileDrag(e)) return;
+        e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; fileDropOverlay.hidden = false;
+      });
+      window.addEventListener('dragleave', e => {
+        if (!e.relatedTarget) fileDropOverlay.hidden = true;
+      });
+      window.addEventListener('drop', e => {
+        if (!isFileDrag(e)) return;
+        e.preventDefault(); fileDropOverlay.hidden = true;
+        openFiles(Array.from(e.dataTransfer.files));
+      });
       document.getElementById('canvasContainer').addEventListener('pointerdown', e => {
         if (!(connectArmed || disconnectArmed) || (e.pointerType === 'mouse' ? e.button !== 0 : !e.isPrimary)) return;
         if (e.target.closest?.('.node, g.nodes > g, .edgePath, .edgeLabel, g.edgePaths, g.edgeLabels, .edge-hit, g.process-note, g.cluster, .resize-handle')) return;
@@ -3038,7 +3053,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       if (!code) {
         if (panZoomInstance) { panZoomInstance.destroy(); panZoomInstance = null; }
         nodeIndex = {}; edgeIndex = [];
-        mermaidRender.innerHTML = '<p class="text-xs text-slate-500 font-mono">Open a .vsm.json project file or select a template to begin.</p>';
+        mermaidRender.innerHTML = '<p class="text-xs text-slate-500 font-mono">Open a project file or select a template to begin.</p>';
         document.getElementById('nodeCount').textContent = 'Nodes: 0';
         updateStatus('Ready', 'emerald'); dismissError(); return;
       }
@@ -5130,36 +5145,154 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       debouncedRender();
     }
 
-    function handleFileDrop(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('bg-blue-950/20'); if (e.dataTransfer.files.length > 0) loadFile(e.dataTransfer.files[0]); }
-    function handleFileSelect(e) { if (e.target.files.length > 0) loadFile(e.target.files[0]); e.target.value = ''; }
-    function loadFile(file) {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const content = evt.target.result;
-        if (file.name.endsWith('.json')) {
-          try {
-            const parsed = JSON.parse(content);
-            hydrateFromState(parsed);
-          } catch(err) { console.error('Invalid project JSON file:', err); alert('Invalid project JSON file.'); }
-        } else {
-          const state = blankProject();
-          state.title = file.name;
-          state.mermaid = content;
-          openCanvasTab(state.title, state);
-        }
-      };
-      reader.onerror = () => { console.error('Could not read project file:', reader.error); alert('Could not read project file.'); };
-      reader.readAsText(file);
+    const PROJECT_FORMAT = 'MermaidVSM';
+    const PROJECT_VERSION = 1;
+    const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+    function validateProjectState(state) {
+      if (!isRecord(state) || typeof state.mermaid !== 'string') throw new Error('Canvas is missing Mermaid code.');
+      for (const key of ['metrics', 'positions', 'notes', 'styles', 'dimensions', 'edges', 'settings']) {
+        if (state[key] != null && !isRecord(state[key])) throw new Error(`Invalid canvas ${key}.`);
+      }
+      for (const key of ['metrics', 'positions', 'notes', 'styles', 'dimensions', 'edges']) {
+        if (state[key] && Object.values(state[key]).some(value => !isRecord(value))) throw new Error(`Invalid canvas ${key} entry.`);
+      }
+      if (state.notes && Object.values(state.notes).some(note => typeof note.targetId !== 'string' || !note.targetId)) throw new Error('Invalid note target.');
     }
 
-    function saveProjectJSON() {
-      projectState.mermaid = mermaidCodeInput.value;
-      pruneOrphanNotes();
-      const jsonStr = JSON.stringify(projectState, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-      const title = projectState.project?.title || projectState.title || "vsm_project";
-      a.download = `${title.toLowerCase().replace(/\s+/g, '_')}.vsm.json`; a.click();
+    function parseProjectFile(text) {
+      const data = JSON.parse(text);
+      if (!isRecord(data)) throw new Error('Project must be a JSON object.');
+      if (!Object.hasOwn(data, 'format')) {
+        validateProjectState(data);
+        return { tabs: [{ id: 1, name: String(data.project?.title || data.title || 'Imported Canvas'), state: data }], activeTabId: 1 };
+      }
+      if (data.format !== PROJECT_FORMAT || data.version !== PROJECT_VERSION) throw new Error('Unsupported project format or version.');
+      if (!Array.isArray(data.tabs) || !data.tabs.length) throw new Error('Project contains no canvas tabs.');
+      const ids = new Set();
+      for (const tab of data.tabs) {
+        if (!isRecord(tab) || !Number.isSafeInteger(tab.id) || ids.has(tab.id) || typeof tab.name !== 'string' || !tab.name.trim()) throw new Error('Invalid canvas tab.');
+        ids.add(tab.id);
+        validateProjectState(tab.state);
+        if (tab.pendingPositions != null) {
+          if (!isRecord(tab.pendingPositions) || Object.values(tab.pendingPositions).some(p => !isRecord(p) || !Number.isFinite(p.x) || !Number.isFinite(p.y))) throw new Error('Invalid pending node positions.');
+        }
+      }
+      if (!ids.has(data.activeTabId)) throw new Error('Project active tab is missing.');
+      return data;
+    }
+
+    function importProject(data) {
+      syncActiveCanvas();
+      const names = new Set(canvasTabs.map(tab => tab.name));
+      const imported = data.tabs.map(tab => {
+        const base = tab.name;
+        let name = base, suffix = 2;
+        while (names.has(name)) name = `${base} (${suffix++})`;
+        names.add(name);
+        const result = { id: nextCanvasId++, name, state: tab.state };
+        if (tab.pendingPositions) result.pendingPositions = tab.pendingPositions;
+        return { savedId: tab.id, tab: result };
+      });
+      canvasTabs.push(...imported.map(item => item.tab));
+      activateCanvasTab(imported.find(item => item.savedId === data.activeTabId).tab.id);
+    }
+
+    async function openFiles(files) {
+      for (const file of files) {
+        try {
+          const name = file.name.toLowerCase();
+          const text = await file.text();
+          if (name.endsWith('.vsm') || name.endsWith('.json')) importProject(parseProjectFile(text));
+          else if (name.endsWith('.mmd') || name.endsWith('.txt')) {
+            const state = blankProject();
+            state.title = file.name; state.mermaid = text;
+            openCanvasTab(state.title, state);
+          } else throw new Error('Unsupported file type. Use .vsm, .vsm.json, .json, .mmd, or .txt.');
+          updateStatus(`Opened ${file.name}`, 'emerald');
+        } catch (err) {
+          console.error('Could not open project file:', err);
+          alert(`Could not open "${file.name}": ${err.message || err}`);
+        }
+      }
+    }
+
+    async function openProjectFile() {
+      if (typeof window.showOpenFilePicker !== 'function') { document.getElementById('fileInput').click(); return; }
+      let handles;
+      try {
+        handles = await window.showOpenFilePicker({ multiple: false, types: [{ description: 'MermaidVSM projects and Mermaid files', accept: { 'application/json': ['.vsm', '.json'], 'text/plain': ['.mmd', '.txt'] } }] });
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('Native file picker unavailable; using file input:', err);
+        document.getElementById('fileInput').click();
+        return;
+      }
+      try { await openFiles([await handles[0].getFile()]); }
+      catch (err) { console.error('Could not read selected file:', err); alert(`Could not read selected file: ${err.message || err}`); }
+    }
+
+    function handleFileSelect(e) {
+      const files = Array.from(e.target.files);
+      e.target.value = '';
+      openFiles(files);
+    }
+
+    function projectSnapshot(allTabs) {
+      endNodeDrag();
+      syncActiveCanvas();
+      const tabs = allTabs ? canvasTabs : canvasTabs.filter(tab => tab.id === activeCanvasId);
+      return {
+        format: PROJECT_FORMAT, version: PROJECT_VERSION, activeTabId: activeCanvasId,
+        tabs: tabs.map(tab => {
+          const saved = { id: tab.id, name: tab.name, state: tab.state };
+          if (tab.pendingPositions) saved.pendingPositions = tab.pendingPositions;
+          return saved;
+        })
+      };
+    }
+
+    async function saveProjectFile(allTabs) {
+      try {
+        const snapshot = JSON.stringify(projectSnapshot(allTabs), null, 2);
+        const name = allTabs ? 'mermaid-vsm-workspace.vsm' : `${exportBaseName()}.vsm`;
+        await saveProjectBlob(new Blob([snapshot], { type: 'application/json' }), name, '.vsm');
+      } catch (err) { console.error('Could not save project:', err); alert(`Could not save project: ${err.message || err}`); }
+    }
+
+    async function saveProjectJSON() {
+      try {
+        endNodeDrag(); syncActiveCanvas();
+        if (pendingConnectionPositions) { alert('A canvas layout update is still pending. Save as .vsm to preserve it.'); return; }
+        const blob = new Blob([JSON.stringify(projectState, null, 2)], { type: 'application/json' });
+        await saveProjectBlob(blob, `${exportBaseName()}.vsm.json`, '.json');
+      } catch (err) { console.error('Could not save project:', err); alert(`Could not save project: ${err.message || err}`); }
+    }
+
+    async function saveProjectBlob(blob, name, extension) {
+      let handle = null;
+      if (typeof window.showSaveFilePicker === 'function') {
+        try {
+          handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'MermaidVSM project', accept: { 'application/json': [extension] } }] });
+        } catch (err) {
+          if (err.name === 'AbortError') return;
+          if (err.name !== 'SecurityError' && err.name !== 'NotAllowedError') throw err;
+          console.warn('Native project save picker unavailable; using browser download:', err);
+        }
+      }
+      if (handle) {
+        const writable = await handle.createWritable();
+        try { await writable.write(blob); await writable.close(); }
+        catch (err) {
+          try { await writable.abort(); } catch (abortError) { console.warn('Could not abort project write:', abortError); }
+          throw err;
+        }
+      } else {
+        const url = URL.createObjectURL(blob);
+        downloadURL(url, name);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      updateStatus(`${handle ? 'Saved' : 'Download started'}: ${name}`, 'emerald');
     }
 
     function updateLineNumbers() { lineNumbers.innerHTML = Array.from({ length: mermaidCodeInput.value.split('\n').length }, (_, i) => i + 1).join('<br>'); }
