@@ -2357,6 +2357,8 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
             <button onclick="addLibraryNode('supermarket')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Supermarket</button>
             <button onclick="addLibraryNode('buffer')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Buffer / WIP</button>
             <button onclick="addLibraryNode('box')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Inventory Box</button>
+            <button onclick="addLibraryNode('safety-stock')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Safety Stock</button>
+            <button onclick="addLibraryNode('data-box')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Data Box</button>
           </div>
         </details>
         <details class="border-b border-slate-800 pb-1">
@@ -2364,6 +2366,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           <div class="mt-1 grid grid-cols-2 gap-1">
             <button onclick="addLibraryNode('push')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Push Flow</button>
             <button onclick="addLibraryNode('pull')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Pull Flow</button>
+            <button onclick="addLibraryNode('fifo')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">FIFO Lane</button>
             <button onclick="addLibraryNode('document')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">SOP / Traveler</button>
             <button onclick="addLibraryNode('cloud')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">ERP / Cloud</button>
             <button onclick="addLibraryNode('truck')" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-[11px] text-slate-200 transition">Ground Freight</button>
@@ -2451,7 +2454,8 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
               <option value="solid">Solid (--&gt;)</option>
               <option value="dotted">Dotted (-.-&gt;)</option>
               <option value="thick">Thick (==&gt;)</option>
-              <option value="invisible">Invisible Spacer (~~~)</option>
+              <option value="electronic">Electronic Info Flow (zigzag)</option>
+              <option value="push">Push Arrow Flow (striped)</option>
             </select>
           </div>
           <div>
@@ -2460,7 +2464,9 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
               <option value="directed">Single Arrow (--&gt;)</option>
               <option value="bidirectional">Double Arrow (&lt;--&gt;)</option>
               <option value="circle">Circle / Dot (--o)</option>
+              <option value="double_circle">Double Circle (o--o)</option>
               <option value="cross">Cross / Stop (--x)</option>
+              <option value="double_cross">Double Cross (x--x)</option>
               <option value="open">Open Link (---)</option>
             </select>
           </div>
@@ -2527,6 +2533,9 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
                   <option value="icon:process_shared">Shared Process</option>
                   <option value="icon:workcell">Workcell</option>
                   <option value="icon:supermarket">Supermarket</option>
+                  <option value="icon:safety_stock">Safety Stock</option>
+                  <option value="icon:fifo">FIFO Lane</option>
+                  <option value="icon:data_box">Data Box</option>
                   <option value="icon:inspection">Quality Inspection</option>
                   <option value="icon:supplier">External Supplier</option>
                   <option value="icon:customer">Customer / Person</option>
@@ -2904,8 +2913,31 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           applyStoredDimensions();
           applyIconPrimitiveStyles();
           addSymbolTouchHits();
+          const flowEdges = parseMermaidEdges(code);
           edgeIndex.forEach(e => {
-            if (pendingConnectionPositions || [e.src, e.tgt].some(id => nodeIndex[id]?.foreignObject?.querySelector('[data-icon]') || parseNodeDefinition(code, id)?.shape === 'triangle')) routeEdge(e);
+            const edge = findFlowEdgeFromElement(e.path, flowEdges);
+            e.visualStyle = edge && getFlowEdgeStyle(edge);
+            if (e.visualStyle === 'electronic') e.path.style.setProperty('stroke-dasharray', 'none', 'important');
+            if (e.visualStyle === 'push') {
+              const ns = 'http://www.w3.org/2000/svg';
+              const pattern = document.createElementNS(ns, 'pattern');
+              const patternId = `vsm-push-pattern-${edgeIndex.indexOf(e)}`;
+              pattern.id = patternId;
+              pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+              pattern.setAttribute('width', '10'); pattern.setAttribute('height', '10');
+              const background = document.createElementNS(ns, 'rect');
+              background.setAttribute('width', '10'); background.setAttribute('height', '10');
+              background.setAttribute('fill', getComputedStyle(e.path).stroke);
+              const stripes = document.createElementNS(ns, 'path');
+              stripes.setAttribute('d', 'M -5 5 L 5 -5 M 0 10 L 10 0 M 5 15 L 15 5');
+              stripes.setAttribute('stroke', '#0b0f19'); stripes.setAttribute('stroke-width', '3');
+              pattern.append(background, stripes);
+              svgElement.querySelector('defs').appendChild(pattern);
+              e.path.style.setProperty('stroke', `url(#${patternId})`, 'important');
+              e.path.style.setProperty('stroke-width', '6px', 'important');
+              e.path.style.setProperty('stroke-dasharray', 'none', 'important');
+            }
+            if (pendingConnectionPositions || e.visualStyle === 'electronic' || [e.src, e.tgt].some(id => nodeIndex[id]?.foreignObject?.querySelector('[data-icon]') || ['triangle', 'hexagon'].includes(parseNodeDefinition(code, id)?.shape))) routeEdge(e);
           });
           pendingConnectionPositions = null;
           renderNotes();
@@ -3059,6 +3091,20 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
             polygon.setAttribute('points', `${box.x + box.width / 2},${box.y} ${box.x + box.width},${box.y + box.height} ${box.x},${box.y + box.height}`);
             base.element.replaceWith(polygon);
             n.shapeElements = n.shapeElements.map(item => item === base ? { element: polygon, transform: base.transform } : item);
+          }
+        }
+        if (parsed.shape === 'hexagon') {
+          const base = n.shapeElements.find(({ element }) => element.matches('polygon'));
+          if (base) {
+            const box = base.element.getBBox();
+            const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+            const radius = Math.max(box.width / 2, box.height / Math.sqrt(3));
+            const hh = radius * Math.sqrt(3) / 2;
+            base.element.setAttribute('points', `${cx - radius},${cy} ${cx - radius / 2},${cy - hh} ${cx + radius / 2},${cy - hh} ${cx + radius},${cy} ${cx + radius / 2},${cy + hh} ${cx - radius / 2},${cy + hh}`);
+            const bounds = n.el.getBBox();
+            n.box = bounds;
+            n.baseBox = { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+            n.baseWidth = Math.max(1, bounds.width); n.baseHeight = Math.max(1, bounds.height);
           }
         }
         if (!parsed.doubleBorder) return;
@@ -3299,8 +3345,20 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       if (!a || !b) return null;
       if (e.src === e.tgt) {
         const x = a.cx + a.hw, y = a.cy, r = Math.max(35, a.hw, a.hh);
-        const d = `M ${x} ${y} C ${x + r * 2} ${y - r * 2}, ${x + r * 2} ${y + r * 2}, ${x} ${y}`;
+        let d = `M ${x} ${y} C ${x + r * 2} ${y - r * 2}, ${x + r * 2} ${y + r * 2}, ${x} ${y}`;
         e.path.setAttribute('d', d);
+        if (e.visualStyle === 'electronic') {
+          const length = e.path.getTotalLength(), steps = Math.max(2, Math.ceil(length / 16)), parts = [`M ${x} ${y}`];
+          for (let i = 1; i < steps; i++) {
+            const at = length * i / steps, p = e.path.getPointAtLength(at);
+            const before = e.path.getPointAtLength(Math.max(0, at - 1)), after = e.path.getPointAtLength(Math.min(length, at + 1));
+            const dx = after.x - before.x, dy = after.y - before.y, norm = Math.hypot(dx, dy) || 1, wave = (i % 2 ? 1 : -1) * 7;
+            parts.push(`L ${p.x - dy / norm * wave} ${p.y + dx / norm * wave}`);
+          }
+          parts.push(`L ${x} ${y}`);
+          d = parts.join(' ');
+          e.path.setAttribute('d', d);
+        }
         e.hits.forEach(h => h.setAttribute('d', d));
         placeEdgeLabel(e, x + r * 1.5, y);
         return { from: { x, y, ox: 1, oy: 0 }, to: { x, y, ox: 1, oy: 0 } };
@@ -3319,6 +3377,18 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         x1 = a.cx; y1 = s > 0 ? a.bottom : a.top; x2 = b.cx; y2 = s > 0 ? b.top : b.bottom;
         const h = (y2 - y1) / 2;
         d = `M ${x1} ${y1} C ${x1 + offset} ${y1 + h}, ${x2 + offset} ${y2 - h}, ${x2} ${y2}`;
+      }
+      if (e.visualStyle === 'electronic' && Math.hypot(x2 - x1, y2 - y1) > 0.01) {
+        const vx = x2 - x1, vy = y2 - y1, length = Math.hypot(vx, vy);
+        const steps = Math.max(2, Math.ceil(length / 16));
+        const amplitude = Math.min(7, length / 8);
+        const parts = [`M ${x1} ${y1}`];
+        for (let i = 1; i < steps; i++) {
+          const t = i / steps, wave = (i % 2 ? 1 : -1) * amplitude;
+          parts.push(`L ${x1 + vx * t - vy / length * wave} ${y1 + vy * t + vx / length * wave}`);
+        }
+        parts.push(`L ${x2} ${y2}`);
+        d = parts.join(' ');
       }
       e.path.setAttribute('d', d);
       e.hits.forEach(h => h.setAttribute('d', d));
@@ -3724,7 +3794,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         supplier: { base: 'NewSupplier', def: id => `${id}["External Supplier"]`, m: { title: 'External Supplier', owner: '', wip: 0, shape: 'rect', icon: 'supplier' } },
         customer: { base: 'NewCustomer', def: id => `${id}["Customer"]`, m: { title: 'Customer', owner: '', wip: 0, shape: 'rect', icon: 'customer' } },
         'milk-run': { base: 'NewMilkRun', def: id => `${id}["Milk Run"]`, m: { title: 'Milk Run', owner: '', wip: 0, shape: 'rect', icon: 'milk_run' } },
-        decision: { base: 'NewDec', def: id => `${id}{"New Decision?"}`, m: { title: 'New Decision?', owner: '', wip: 0 } },
+        decision: { base: 'NewDec', def: id => `${id}{"Decision"}`, m: { title: 'Decision', owner: '', wip: 0 } },
         buffer: { base: 'NewWIP', def: id => `${id}[/"WIP: 10 Pcs"\\]`, m: { title: 'WIP: 10 Pcs', owner: 'Buffer', wip: 10 } },
         'double-rect': { base: 'NewDoubleRect', def: id => `${id}["Double Rectangle"]`, m: { title: 'Double Rectangle', owner: '', wip: 0, shape: 'rect', doubleBorder: true } },
         actor: { base: 'NewActor', def: id => `${id}["Human Operator"]`, m: { title: 'Human Operator', owner: '', wip: 0, icon: 'actor' } },
@@ -3736,13 +3806,16 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         document: { base: 'NewDocument', def: id => `${id}["SOP / Traveler"]`, m: { title: 'SOP / Traveler', owner: '', wip: 0, icon: 'document' } },
         clock: { base: 'NewWait', def: id => `${id}["Wait"]`, m: { title: 'Wait', owner: '', wip: 0, icon: 'clock' } },
         box: { base: 'NewPackage', def: id => `${id}["Inventory"]`, m: { title: 'Inventory', owner: '', wip: 0, icon: 'box' } },
+        'safety-stock': { base: 'NewSafetyStock', def: id => `${id}["Safety Stock"]`, m: { title: 'Safety Stock', owner: '', wip: 0, icon: 'safety_stock' } },
+        'data-box': { base: 'NewDataBox', def: id => `${id}["Data Box"]`, m: { title: 'Data Box', owner: '', wip: 0, icon: 'data_box' } },
+        fifo: { base: 'NewFIFO', def: id => `${id}["FIFO Lane"]`, m: { title: 'FIFO Lane', owner: '', wip: 0, icon: 'fifo' } },
         push: { base: 'NewPush', def: id => `${id}["Push Flow"]`, m: { title: 'Push Flow', owner: '', wip: 0, icon: 'push' } },
         pull: { base: 'NewPull', def: id => `${id}["Pull Flow"]`, m: { title: 'Pull Flow', owner: '', wip: 0, icon: 'pull' } },
-        'shape-rounded': { base: 'NewRounded', def: id => `${id}("Rounded Rectangle")`, m: { title: 'Rounded Rectangle', owner: '', wip: 0, shape: 'rounded' } },
-        'shape-circle': { base: 'NewCircle', def: id => `${id}(("Circle"))`, m: { title: 'Circle', owner: '', wip: 0, shape: 'circle' } },
-        'shape-triangle': { base: 'NewTriangle', def: id => `${id}["Triangle"]`, m: { title: 'Triangle', owner: '', wip: 0, shape: 'triangle' } },
-        'shape-hexagon': { base: 'NewHexagon', def: id => `${id}{{"Hexagon"}}`, m: { title: 'Hexagon', owner: '', wip: 0, shape: 'hexagon' } },
-        'shape-cylinder': { base: 'NewCylinder', def: id => `${id}[("Cylinder")]`, m: { title: 'Cylinder', owner: '', wip: 0, shape: 'cylinder' } },
+        'shape-rounded': { base: 'NewRounded', def: id => `${id}("New Process")`, m: { title: 'New Process', owner: '', wip: 0, shape: 'rounded' } },
+        'shape-circle': { base: 'NewCircle', def: id => `${id}(("Operation / Node"))`, m: { title: 'Operation / Node', owner: '', wip: 0, shape: 'circle' } },
+        'shape-triangle': { base: 'NewTriangle', def: id => `${id}["Inventory Triangle"]`, m: { title: 'Inventory Triangle', owner: '', wip: 0, shape: 'triangle' } },
+        'shape-hexagon': { base: 'NewHexagon', def: id => `${id}{{"New Process"}}`, m: { title: 'New Process', owner: '', wip: 0, shape: 'hexagon' } },
+        'shape-cylinder': { base: 'NewCylinder', def: id => `${id}[("MRP / Database")]`, m: { title: 'MRP / Database', owner: '', wip: 0, shape: 'cylinder' } },
         'double-diamond': { base: 'NewDoubleDiamond', def: id => `${id}{"Double Diamond"}`, m: { title: 'Double Diamond', owner: '', wip: 0, shape: 'diamond', doubleBorder: true } },
         'double-rounded': { base: 'NewDoubleRounded', def: id => `${id}("Double Rounded")`, m: { title: 'Double Rounded', owner: '', wip: 0, shape: 'rounded', doubleBorder: true } },
         'double-circle': { base: 'NewDoubleCircle', def: id => `${id}(("Double Circle"))`, m: { title: 'Double Circle', owner: '', wip: 0, shape: 'circle', doubleBorder: true } },
@@ -3877,7 +3950,15 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       preserveConnectionPositions();
       mermaidCodeInput.value = projectState.mermaid = next;
       if (nodeId) { delete projectState.metrics[nodeId]; if (projectState.positions) delete projectState.positions[nodeId]; if (projectState.styles) delete projectState.styles[nodeId]; if (projectState.dimensions) delete projectState.dimensions[nodeId]; Object.entries(projectState.notes || {}).forEach(([k, n]) => { if (n.targetId === nodeId) delete projectState.notes[k]; }); }
-      if (edgeRef && projectState.edges) delete projectState.edges[edgeKey(edgeRef)];
+      if (edgeRef && projectState.edges) {
+        if (kind === 'flow') removeFlowEdgeMetadata(edgeRef, parseDisconnectEdges(code));
+        else delete projectState.edges[edgeKey(edgeRef)];
+      }
+      if (nodeId && projectState.edges) {
+        Object.entries(projectState.edges).forEach(([key, edge]) => {
+          if (edge.source === nodeId || edge.target === nodeId) delete projectState.edges[key];
+        });
+      }
       closeInspector();
       updateLineNumbers(); calculateVSMMetrics();
       await renderDiagram();
@@ -4035,16 +4116,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       }
       preserveConnectionPositions();
       mermaidCodeInput.value = projectState.mermaid = next;
-      if (projectState.edges) {
-        delete projectState.edges[edgeKey(edge)];
-        allEdges.filter(e => e.src === edge.src && e.tgt === edge.tgt && e.idx > edge.idx).forEach(e => {
-          const oldKey = edgeKey(e), newKey = edgeKey({ ...e, idx: e.idx - 1 });
-          if (Object.hasOwn(projectState.edges, oldKey)) {
-            projectState.edges[newKey] = projectState.edges[oldKey];
-            delete projectState.edges[oldKey];
-          }
-        });
-      }
+      removeFlowEdgeMetadata(edge, allEdges);
       if (activeEdge) closeInspector();
       disconnectSourceNodeId = null;
       mermaidRender.querySelectorAll('.connect-source').forEach(n => n.classList.remove('connect-source'));
@@ -4249,7 +4321,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       process_dedicated: `<path d='M3 20V9l4-3v3l4-3v3l4-3v3l3-2v16'/><path d='M2 20h20M7 20v-5h4v5m4-8h2m-2 4h2'/>`,
       process_shared: `<path d='M4 5h6v5H4zM14 14h6v5h-6z'/><path d='M10 7h3a3 3 0 0 1 3 3v4M14 17h-3a3 3 0 0 1-3-3v-4'/>`,
       workcell: `<path d='M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z'/><path d='M10 7h4m-7 3v4m10-4v4m-7 3h4'/>`,
-      supplier: `<path d='M3 20V9l4-3v3l4-3v3l4-3v14'/><path d='M2 20h20m-7-8h2m-2 4h2'/><path d='m17 5 2-2 2 2m-2-2v5'/>`,
+      supplier: `<path d='M2 20V10l5-4v4l5-4v4l5-4v4l5-4v14z'/><path d='M2 20h20M6 14h2m3 0h2m3 0h2'/>`,
       customer: `<circle cx='12' cy='7' r='3'/><path d='M5 21v-2a7 7 0 0 1 14 0v2M5 12l-2 2 2 2m14-4 2 2-2 2'/>`,
       kaizen: `<path d='M12 2v3m0 14v3M4.93 4.93l2.12 2.12m9.9 9.9 2.12 2.12M2 12h3m14 0h3M4.93 19.07l2.12-2.12m9.9-9.9 2.12-2.12'/><path d='m14 4 6 6-9 9-5-5zM6 14l-3 7 7-3'/>`,
       milk_run: `<path d='M3 7h11v10H3zM14 10h4l3 3v4h-7z'/><circle cx='7' cy='18' r='2'/><circle cx='18' cy='18' r='2'/><path d='M5 10h7m-7 3h5'/>`,
@@ -4263,6 +4335,9 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       document: `<path d='M6 3h8l5 5v13H6z'/><path d='M14 3v6h5M9 13h7m-7 4h7'/>`,
       clock: `<circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/>`,
       box: `<path d='m3 7 9-4 9 4-9 4zM3 7v10l9 4 9-4V7m-9 4v10'/>`,
+      safety_stock: `<path d='M4 3h16v6H4zM4 9h16v6H4zM4 15h16v6H4z'/><path d='M12 3v6M9 9v6m6 0v6'/>`,
+      data_box: `<path d='M3 3h18v18H3zM3 8h18M3 13h18M3 17h18M11 8v13'/>`,
+      fifo: `<path d='M2 5h20v14H2z'/><path fill='none' stroke-width='1.1' d='M4 15V9h3M4 12h2M8 9h2m-1 0v6m-1 0h2m2 0V9h3m-3 3h2m3-1a2 2 0 0 1 4 0v2a2 2 0 0 1-4 0z'/>`,
       push: `<path d='M3 7h15m-4-4 4 4-4 4M3 17h15m-4-4 4 4-4 4'/>`,
       pull: `<path d='M21 7H6m4-4-4 4 4 4M21 17H6m4-4-4 4 4 4'/>`
     };
@@ -4490,6 +4565,12 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       document.getElementById('inspectorEdgeId').value = edgeKey(edge);
       document.getElementById('inspectorEdgeLabel').value = edge.label;
       const styleSel = document.getElementById('inspectorEdgeStyle'), arrowSel = document.getElementById('inspectorEdgeArrow');
+      styleSel.querySelector('option[data-legacy-invisible]')?.remove();
+      if (edge.style === 'invisible') {
+        const option = new Option('Existing invisible spacer (~~~)', 'invisible');
+        option.hidden = true; option.disabled = true; option.dataset.legacyInvisible = 'true';
+        styleSel.add(option);
+      }
       const allowed = {
         flow: null,
         sequence: { style: ['solid', 'dotted'], arrow: ['directed', 'open', 'cross', 'circle'] },
@@ -4498,7 +4579,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       [[styleSel, 'style'], [arrowSel, 'arrow']].forEach(([sel, key]) => {
         [...sel.options].forEach(o => { o.disabled = !!allowed && !allowed[key].includes(o.value); });
       });
-      styleSel.value = edge.style; arrowSel.value = edge.arrow;
+      styleSel.value = activeEdge.kind === 'flow' ? getFlowEdgeStyle(edge) : edge.style; arrowSel.value = edge.arrow;
       refreshEdgeInspectorState();
       switchInspectorTab('edge');
       showInspectorDrawer();
@@ -4692,7 +4773,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     }
 
     const EDGE_SKIP = /^\s*(?:(?:classDef|class|style|linkStyle|subgraph|click|direction|end)\b|%%)/;
-    const EDGE_CONN = /(<)?(?:(?:--|==|-\.)[ \t]+[^\n]*?[ \t]+(?:-{2,}|={2,}|\.-)[>ox]?|(?:-{2,}|={2,}|-\.+-?|~{3,})[>ox]?(?:[ \t]*\|[^|\n]*\|)?)/g;
+    const EDGE_CONN = /(?:<|(?<![\w])[ox])?(?:(?:--|==|-\.)[ \t]+[^\n]*?[ \t]+(?:-{2,}|={2,}|\.-)[>ox]?|(?:-{2,}|={2,}|-\.+-?|~{3,})[>ox]?(?:[ \t]*\|[^|\n]*\|)?)/g;
 
     function maskMermaidLine(line) {
       let out = line.replace(/"[^"]*"/g, s => '\u0001'.repeat(s.length));
@@ -4704,25 +4785,27 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     function headToArrow(h) { return h === '>' ? 'directed' : h === 'o' ? 'circle' : h === 'x' ? 'cross' : 'open'; }
 
     function parseMermaidConnector(text) {
-      let m = text.match(/^(<)?(--|==|-\.)[ \t]+([\s\S]*?)[ \t]+(?:-{2,}|={2,}|\.-)([>ox])?$/);
+      let m = text.match(/^([<ox])?(--|==|-\.)[ \t]+([\s\S]*?)[ \t]+(?:-{2,}|={2,}|\.-)([>ox])?$/);
       if (m) {
-        return { label: cleanEdgeLabel(m[3]), style: m[2] === '==' ? 'thick' : m[2] === '-.' ? 'dotted' : 'solid', arrow: m[1] ? 'bidirectional' : headToArrow(m[4]) };
+        return { label: cleanEdgeLabel(m[3]), style: m[2] === '==' ? 'thick' : m[2] === '-.' ? 'dotted' : 'solid', arrow: m[1] === '<' ? 'bidirectional' : m[1] === 'o' && m[4] === 'o' ? 'double_circle' : m[1] === 'x' && m[4] === 'x' ? 'double_cross' : headToArrow(m[4]) };
       }
-      m = text.match(/^(<)?(-{2,}|={2,}|-\.+-?|~{3,})([>ox])?(?:[ \t]*\|([^|]*)\|)?$/);
+      m = text.match(/^([<ox])?(-{2,}|={2,}|-\.+-?|~{3,})([>ox])?(?:[ \t]*\|([^|]*)\|)?$/);
       if (!m) return null;
       const body = m[2];
-      return { label: cleanEdgeLabel(m[4]), style: body[0] === '~' ? 'invisible' : body[0] === '=' ? 'thick' : body.includes('.') ? 'dotted' : 'solid', arrow: m[1] ? 'bidirectional' : headToArrow(m[3]) };
+      return { label: cleanEdgeLabel(m[4]), style: body[0] === '~' ? 'invisible' : body[0] === '=' ? 'thick' : body.includes('.') ? 'dotted' : 'solid', arrow: m[1] === '<' ? 'bidirectional' : m[1] === 'o' && m[3] === 'o' ? 'double_circle' : m[1] === 'x' && m[3] === 'x' ? 'double_cross' : headToArrow(m[3]) };
     }
 
     function buildMermaidConnector(style, arrow, label) {
       if (style === 'invisible') return '~~~';
+      if (style === 'electronic') style = 'dotted';
+      if (style === 'push') style = 'thick';
       const S = {
         solid: { lead: '--', tail: '', open: '-', end: '--' },
         thick: { lead: '==', tail: '', open: '=', end: '==' },
         dotted: { lead: '-.', tail: '-', open: '', end: '.-' }
       }[style] || { lead: '--', tail: '', open: '-', end: '--' };
-      const head = { directed: '>', bidirectional: '>', circle: 'o', cross: 'x' }[arrow] || '';
-      const pre = arrow === 'bidirectional' ? '<' : '';
+      const head = { directed: '>', bidirectional: '>', circle: 'o', double_circle: 'o', cross: 'x', double_cross: 'x' }[arrow] || '';
+      const pre = { bidirectional: '<', double_circle: 'o', double_cross: 'x' }[arrow] || '';
       const safe = (label || '').trim().replace(/"/g, '#quot;');
       if (!safe) return pre + S.lead + S.tail + (head || S.open);
       return `${pre}${S.lead} "${safe}" ${S.end}${head || S.open}`;
@@ -4790,6 +4873,25 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
 
     function edgeKey(e) { return `${e.src}_to_${e.tgt}${e.idx ? '_' + (e.idx + 1) : ''}`; }
 
+    function removeFlowEdgeMetadata(edge, allEdges) {
+      if (!projectState.edges) return;
+      delete projectState.edges[edgeKey(edge)];
+      allEdges.filter(e => e.src === edge.src && e.tgt === edge.tgt && e.idx > edge.idx).forEach(e => {
+        const oldKey = edgeKey(e), newKey = edgeKey({ ...e, idx: e.idx - 1 });
+        if (Object.hasOwn(projectState.edges, oldKey)) {
+          projectState.edges[newKey] = projectState.edges[oldKey];
+          delete projectState.edges[oldKey];
+        }
+      });
+    }
+
+    function getFlowEdgeStyle(edge) {
+      const saved = projectState.edges?.[edgeKey(edge)]?.style;
+      if (saved === 'electronic' && edge.style === 'dotted') return saved;
+      if (saved === 'push' && edge.style === 'thick') return saved;
+      return edge.style;
+    }
+
     function findFlowEdgeFromElement(el, edges = parseMermaidEdges(mermaidCodeInput.value)) {
       if (!el.matches('path')) el = el.closest('g.edgeLabel') || el;
       if (!edges.length) return null;
@@ -4855,11 +4957,12 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       const next = code.slice(0, edge.start) + buildMermaidConnector(style, arrow, label) + code.slice(edge.end);
       projectState.edges = projectState.edges || {};
       projectState.edges[edgeKey(edge)] = { source: edge.src, target: edge.tgt, label: label.trim(), style, arrow };
+      preserveConnectionPositions();
       if (next !== code) {
         mermaidCodeInput.value = projectState.mermaid = next;
         updateLineNumbers();
-        debouncedRender();
       }
+      debouncedRender();
     }
 
     function handleFileDrop(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('bg-blue-950/20'); if (e.dataTransfer.files.length > 0) loadFile(e.dataTransfer.files[0]); }
@@ -4879,7 +4982,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
               mermaidCodeInput.value = parsed.mermaid;
             }
           } catch(err) { alert('Invalid project JSON file.'); }
-        } else { projectState.mermaid = content; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; mermaidCodeInput.value = content; }
+        } else { projectState.mermaid = content; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; projectState.edges = {}; mermaidCodeInput.value = content; }
         resetInteractionState();
         updateLineNumbers(); renderDiagram(); calculateVSMMetrics();
       };
@@ -5028,7 +5131,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     function zoomIn() { if (panZoomInstance) panZoomInstance.zoomIn(); }
     function zoomOut() { if (panZoomInstance) panZoomInstance.zoomOut(); }
     function resetZoom() { if (panZoomInstance) { panZoomInstance.resetZoom(); panZoomInstance.fit(); panZoomInstance.center(); } }
-    function clearCode() { mermaidCodeInput.value = ''; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; projectState.metrics = {}; resetInteractionState(); updateLineNumbers(); renderDiagram(); calculateVSMMetrics(); }
+    function clearCode() { mermaidCodeInput.value = ''; projectState.positions = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; projectState.edges = {}; projectState.metrics = {}; resetInteractionState(); updateLineNumbers(); renderDiagram(); calculateVSMMetrics(); }
     function formatCode() { mermaidCodeInput.value = mermaidCodeInput.value.split('\n').map(l => l.trimEnd()).join('\n'); updateLineNumbers(); }
     const EXPORT_STYLE_PROPS = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color', 'text-anchor', 'dominant-baseline', 'text-align', 'line-height', 'display', 'padding', 'white-space', 'overflow', 'visibility', 'filter'];
     function exportBaseName() {
