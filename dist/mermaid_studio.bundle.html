@@ -2196,6 +2196,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     #zoomControls { bottom: calc(var(--ladder-h, 2.75rem) + 0.75rem + var(--safe-b)); }
     #vsmSummaryLadder { padding-bottom: calc(0.625rem + var(--safe-b)); }
     .sheet-handle, .mobile-only { display: none; }
+    @media (max-width: 640px) { .desktop-only { display: none !important; } }
     #inspectorDrawer { width: clamp(280px, 85vw, 360px); max-width: calc(100vw - 1.5rem); max-height: calc(100% - 9.5rem); }
     #inspectorDrawer.inspector-collapsed { overflow: hidden; }
     /* Visually hidden rather than display:none so a focused input keeps focus while the drawer is minimized */
@@ -2219,6 +2220,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       #zoomControls button, #editorPanel button { min-width: 44px; }
       #inspectorDrawer button, #inspectorDrawer select, #inspectorDrawer input:not([type="checkbox"]) { min-height: 44px; }
       #mermaidRender .edge-hit { vector-effect: non-scaling-stroke; stroke-width: 44px !important; }
+      #mermaidRender .symbol-touch-hit { pointer-events: all !important; }
     }
     /* Phones: overlays become bottom sheets (one visible at a time) and the primary actions live in a floating bottom bar. */
     @media (max-width: 767px) {
@@ -2236,9 +2238,9 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       #zoomControls { top: 0.75rem; bottom: auto; right: 0.75rem; }
 
       #objectLibrary, #inspectorDrawer, #editorPanel { left: 0; right: 0; top: auto; width: auto; max-width: none; bottom: var(--ladder-h, 2.75rem); border-radius: 1rem 1rem 0 0; border-bottom-width: 0; z-index: 40; }
-      #objectLibrary { max-height: min(55%, 360px) !important; padding: 0 0.5rem 0.5rem; }
-      #inspectorDrawer { max-height: min(72%, 560px); }
-      #editorPanel { max-height: min(70%, 420px); }
+      #objectLibrary { max-height: min(55%, 360px, calc(100% - var(--ladder-h, 2.75rem))) !important; padding: 0 0.5rem 0.5rem; }
+      #inspectorDrawer { max-height: min(72%, 560px, calc(100% - var(--ladder-h, 2.75rem))); }
+      #editorPanel { max-height: min(70%, 420px, calc(100% - var(--ladder-h, 2.75rem))); }
       #libraryBody { display: grid; grid-template-columns: 1fr 1fr; gap: 0.375rem; }
       #wandControls { grid-column: 1 / -1; }
       #objectLibrary.lib-collapsed, #editorPanel.editor-collapsed, #inspectorDrawer.sheet-yield { display: none; }
@@ -2712,7 +2714,33 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         updateStatus('Wand mode cancelled', 'emerald');
       }, true);
       mermaidRender.addEventListener('pointerdown', startNodeDrag, true);
+      let wandTouch = null, suppressWandClick = false;
+      mermaidRender.addEventListener('pointerdown', e => {
+        suppressWandClick = false;
+        if (e.pointerType !== 'touch') return;
+        if (!e.isPrimary) { wandTouch = null; return; }
+        const node = e.target.closest?.('.node, g.nodes > g');
+        const edge = e.target.closest?.('.edgePath, .edgeLabel, g.edgePaths path, g.edgeLabels');
+        const selectable = e.target.closest?.('g.process-note, .actor, g.actor, .messageLine0, .messageLine1, .messageText, g.cluster');
+        if (node || edge || selectable) wandTouch = { id: e.pointerId, x: e.clientX, y: e.clientY, node, edge, target: e.target };
+      }, true);
+      mermaidRender.addEventListener('pointermove', e => {
+        if (wandTouch?.id === e.pointerId && Math.hypot(e.clientX - wandTouch.x, e.clientY - wandTouch.y) > 5) wandTouch = null;
+      }, true);
+      mermaidRender.addEventListener('pointerup', e => {
+        if (!wandTouch || e.pointerId !== wandTouch.id) return;
+        const touch = wandTouch; wandTouch = null;
+        if (Math.hypot(e.clientX - touch.x, e.clientY - touch.y) > 5) return;
+        if (disconnectArmed) {
+          if (touch.node) handleDisconnectNode(touch.node);
+          else if (touch.edge) handleDisconnectEdge(touch.edge);
+        } else if (connectArmed && touch.node) handleConnectClick(touch.node);
+        else if (!connectArmed) touch.target.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: e.clientX, clientY: e.clientY }));
+        suppressWandClick = true;
+      }, true);
+      mermaidRender.addEventListener('pointercancel', e => { if (wandTouch?.id === e.pointerId) wandTouch = null; }, true);
       mermaidRender.addEventListener('click', (e) => {
+        if (suppressWandClick) { suppressWandClick = false; return; }
         if (dragMoved) { dragMoved = false; return; }
         const noteEl = e.target.closest('g.process-note');
         if (noteEl && !connectArmed && !disconnectArmed) { openNoteEditor(noteEl.dataset.noteId); return; }
@@ -2875,6 +2903,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           applyStoredPositions();
           applyStoredDimensions();
           applyIconPrimitiveStyles();
+          addSymbolTouchHits();
           edgeIndex.forEach(e => {
             if (pendingConnectionPositions || [e.src, e.tgt].some(id => nodeIndex[id]?.foreignObject?.querySelector('[data-icon]') || parseNodeDefinition(code, id)?.shape === 'triangle')) routeEdge(e);
           });
@@ -2885,6 +2914,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           if (!panZoomInstance) { /* pan/zoom library unavailable: show the static diagram */ }
           else if (pan && zoom) { panZoomInstance.resize(); panZoomInstance.zoom(zoom); panZoomInstance.pan(pan); }
           else refitCanvas();
+          syncWandPan();
         }
         const nodes = (code.match(/\[.*?\]|\(.*?\)|/g) || []).length;
         document.getElementById('nodeCount').textContent = `Nodes: ~${Math.floor(nodes / 2)}`;
@@ -2983,6 +3013,33 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           element.style.setProperty('stroke', 'none', 'important');
           element.style.setProperty('pointer-events', 'none', 'important');
         });
+      });
+    }
+
+    function updateSymbolTouchHit(n) {
+      const hit = n.el.querySelector(':scope > .symbol-touch-hit');
+      const icon = n.foreignObject?.querySelector('[data-icon] svg');
+      const matrix = n.el.getScreenCTM();
+      if (!hit || !icon || !matrix) return;
+      const rect = icon.getBoundingClientRect();
+      const point = new DOMPoint(rect.left + rect.width / 2, rect.top + rect.height / 2).matrixTransform(matrix.inverse());
+      hit.setAttribute('cx', point.x);
+      hit.setAttribute('cy', point.y);
+    }
+
+    function addSymbolTouchHits() {
+      Object.values(nodeIndex).forEach(n => {
+        if (!n.foreignObject?.querySelector('[data-icon] svg')) return;
+        const hit = document.createElementNS(SVG_NS, 'circle');
+        hit.setAttribute('class', 'symbol-touch-hit');
+        hit.setAttribute('r', '0.1');
+        hit.style.setProperty('fill', 'transparent', 'important');
+        hit.style.setProperty('stroke', 'transparent', 'important');
+        hit.style.setProperty('stroke-width', '44px', 'important');
+        hit.setAttribute('vector-effect', 'non-scaling-stroke');
+        hit.style.pointerEvents = 'none';
+        n.el.insertBefore(hit, n.el.firstChild);
+        updateSymbolTouchHit(n);
       });
     }
 
@@ -3093,6 +3150,11 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           const iconContainer = content.querySelector('[data-icon]');
           const icon = iconContainer?.querySelector('svg');
           if (icon && ICON_PRIMITIVES.has(iconContainer.dataset.icon)) {
+            const title = iconContainer.nextElementSibling;
+            if (title) {
+              title.style.maxHeight = `${Math.max(1, h - pad * 2 - 16)}px`;
+              title.style.overflow = 'hidden';
+            }
             icon.setAttribute('width', '56');
             icon.setAttribute('height', '56');
             content.style.height = 'auto';
@@ -3106,6 +3168,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       }
       n.el.dataset.vsmWidth = String(w);
       n.el.dataset.vsmHeight = String(h);
+      updateSymbolTouchHit(n);
       try { n.box = n.el.getBBox(); } catch (err) { return false; }
       return true;
     }
@@ -3887,6 +3950,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       mermaidRender.classList.remove('connect-armed');
       mermaidRender.querySelectorAll('.connect-source').forEach(n => n.classList.remove('connect-source'));
       setConnectButton('🪄 Connect Wand', false);
+      syncWandPan();
     }
 
     function disarmDisconnectMode() {
@@ -3897,15 +3961,23 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       btn.setAttribute('aria-pressed', 'false');
       btn.classList.remove('bg-emerald-700', 'border-emerald-500', 'text-white');
       btn.classList.add('bg-slate-800', 'border-slate-700', 'text-slate-200');
+      syncWandPan();
     }
 
     function disarmWands() { disarmConnectMode(); disarmDisconnectMode(); }
+
+    function syncWandPan() {
+      if (!panZoomInstance) return;
+      if (connectArmed || disconnectArmed) panZoomInstance.disablePan();
+      else if (!drag) panZoomInstance.enablePan();
+    }
 
     function toggleConnectMode() {
       if (connectArmed) { updateStatus('Connect mode active: click the canvas background or press Esc to stop', 'emerald'); return; }
       if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Connect Nodes works on flowcharts only', 'amber'); return; }
       if (disconnectArmed) disarmDisconnectMode();
       connectArmed = true; connectSourceNodeId = null;
+      syncWandPan();
       mermaidRender.classList.add('connect-armed');
       setConnectButton('Select Source...', true);
       updateStatus('Connect mode: click the source node', 'emerald');
@@ -3916,6 +3988,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Disconnect Wand works on flowcharts only', 'amber'); return; }
       if (connectArmed) disarmConnectMode();
       disconnectArmed = true; disconnectSourceNodeId = null;
+      syncWandPan();
       mermaidRender.classList.add('connect-armed');
       const btn = document.getElementById('btnDisconnectNodes');
       btn.setAttribute('aria-pressed', 'true');
@@ -4037,7 +4110,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     function showInspectorDrawer() {
       setInspectorCollapsed(false);
       // Phones: the inspector sheet replaces the library sheet.
-      if (mobileMQ.matches) setLibraryCollapsed(true);
+      if (mobileMQ.matches) { setEditorCollapsed(true); setLibraryCollapsed(true); }
       inspectorDrawer.classList.remove('hidden', 'sheet-yield');
     }
     function toggleInspectorCollapsed() { setInspectorCollapsed(!inspectorDrawer.classList.contains('inspector-collapsed')); }
@@ -4107,7 +4180,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
 
     function getNodeColors(nodeId) {
       const stored = projectState.styles?.[nodeId];
-      const shape = nodeIndex[nodeId]?.el.querySelector('rect, polygon, path, circle, ellipse');
+      const shape = nodeIndex[nodeId]?.shapeElements[0]?.element;
       const computed = shape ? getComputedStyle(shape) : null;
       const label = nodeIndex[nodeId]?.foreignObject?.querySelector('.nodeLabel');
       const labelComputed = label ? getComputedStyle(label) : null;
@@ -4210,7 +4283,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     }
     function iconTitleLabel(icon, nodeId, title, shape, doubleBorder) {
       const metadata = nodeLabelMetadata(shape, doubleBorder);
-      return `<span${metadata} style='display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;white-space:nowrap'><span data-icon='${icon}' style='display:block;line-height:0'>${iconBadge(icon, nodeId)}</span><span style='display:block;line-height:1.2'>${title}</span></span>`;
+      return `<span${metadata} style='display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;max-width:160px;white-space:normal;overflow-wrap:anywhere'><span data-icon='${icon}' style='display:block;line-height:0'>${iconBadge(icon, nodeId)}</span><span style='display:block;max-width:100%;line-height:1.2'>${title}</span></span>`;
     }
     function nodeTitleLabel(m, nodeId, title) {
       if (m.icon && ICONS[m.icon]) return iconTitleLabel(m.icon, nodeId, title, m.shape, m.doubleBorder);
@@ -4476,7 +4549,10 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     function standaloneRenderCode(code) {
       if (diagramKind(code) !== 'flow') return code;
       return code.replace(/\b(\w+)([\[({>]+)"([^"\n]*)"/g, (original, id, opener, label) => {
-        if (/^\s*<span[^>]*display:inline-flex/i.test(label)) return original;
+        if (/^\s*<span[^>]*display:inline-flex/i.test(label)) {
+          return original.replace('text-align:center;white-space:nowrap', 'text-align:center;max-width:160px;white-space:normal;overflow-wrap:anywhere')
+            .replace("display:block;line-height:1.2", "display:block;max-width:100%;line-height:1.2");
+        }
         const parsed = splitIconLabel(label);
         if (!ICON_PRIMITIVES.has(parsed.icon)) return original;
         const pill = (label.match(/<br\s*\/?>\s*<span[^>]*text-\[10px\][^>]*>[\s\S]*?<\/span>\s*$/i) || [''])[0];
@@ -4915,7 +4991,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       }, true);
       const up = e => {
         if (!pts.delete(e.pointerId)) return;
-        if (pts.size === 0 && panZoomInstance && !drag) panZoomInstance.enablePan();
+        if (pts.size === 0) syncWandPan();
       };
       host.addEventListener('pointerup', up, true);
       host.addEventListener('pointercancel', up, true);
@@ -5006,7 +5082,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         dst.setAttribute('style', css);
       });
       addForeignObjectTextFallback(svg, clone);
-      clone.querySelectorAll('.edge-hit, .anchor-socket, .note-sel, #resizeOverlay, [id^="gooey"]').forEach(el => el.remove());
+      clone.querySelectorAll('.edge-hit, .symbol-touch-hit, .anchor-socket, .note-sel, #resizeOverlay, [id^="gooey"]').forEach(el => el.remove());
       const vp = clone.querySelector('g.svg-pan-zoom_viewport');
       if (vp) vp.removeAttribute('transform'), vp.removeAttribute('style');
       clone.querySelectorAll('.svg-pan-zoom-control').forEach(el => el.remove());
