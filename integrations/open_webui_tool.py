@@ -3,7 +3,7 @@ title: Mermaid Studio VSM Viewer
 author: ILCJT
 description: Renders a .vsm.json project (Mermaid + VSM metrics) in an embedded Mermaid Studio iframe.
 requirements:
-version: 1.2.0
+version: 1.2.1
 """
 
 import base64
@@ -65,7 +65,9 @@ class Tools:
 
     def render_vsm(self, mermaid_code: str, title: str = "Value Stream Map") -> HTMLResponse:
         """
-        Render Mermaid flowchart code in the interactive MermaidVSM studio.
+        Open one interactive MermaidVSM canvas for Mermaid flowchart code.
+        Each call creates a separate embedded canvas. Call once per requested map,
+        not repeatedly to test or revise it.
         :param mermaid_code: Mermaid diagram source, without Markdown code fences.
         :param title: Title for the new canvas.
         """
@@ -77,7 +79,9 @@ class Tools:
 
     def open_vsm_studio(self, project_json: str) -> HTMLResponse:
         """
-        Open a Value Stream Map / process flow in Mermaid Studio.
+        Open one Value Stream Map / process flow in Mermaid Studio.
+        Each call creates a separate embedded canvas. Use this OR render_vsm once
+        per requested map, not both or repeated calls to test or revise it.
         :param project_json: A .vsm.json document as a JSON string ({"project":{...},"mermaid":"...","metrics":{...}}).
         """
         try:

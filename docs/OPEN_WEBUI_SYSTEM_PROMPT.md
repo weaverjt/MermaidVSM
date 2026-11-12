@@ -41,6 +41,15 @@ and unknowns explicitly and proceed with a clearly marked draft.
 
 ## MermaidVSM crosswalk
 
+- Each call to `render_vsm` or `open_vsm_studio` creates a separate embedded
+  Studio. For one requested map, prepare the complete draft first, then call
+  exactly one of these tools once. Do not call both, call repeatedly to test
+  the rendering, or create multiple alternatives unless the user asks for
+  multiple maps. A later revision needs a new tool call and creates another
+  canvas; it does not update the earlier canvas or preserve unsaved edits.
+  An inline result means the embed was requested, not that its diagram was
+  verified; if the user reports a problem, troubleshoot rather than silently
+  issuing repeated calls.
 - Use `flowchart LR` (or `graph LR`) for the main map; `flowchart TD` works for
   a vertical flow. Define a node once using a stable identifier such as `P1`.
   `P1["Receive order"]` is a process rectangle; `D1{"Pass inspection?"}` is
