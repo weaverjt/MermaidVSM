@@ -172,6 +172,10 @@
       </select>
     </div>
     <div id="actionBar" class="flex items-center space-x-1.5 ml-auto">
+      <div class="flex items-center border border-slate-700 rounded-md overflow-hidden">
+        <button type="button" id="undoBtn" onclick="undo()" title="Undo (Ctrl+Z)" aria-label="Undo" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs disabled:opacity-40">↶</button>
+        <button type="button" id="redoBtn" onclick="redo()" title="Redo (Ctrl+Y)" aria-label="Redo" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border-l border-slate-700 text-slate-200 text-xs disabled:opacity-40">↷</button>
+      </div>
       <button type="button" id="navAddBtn" onclick="toggleObjectLibrary()" class="mobile-only px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-200 text-xs font-medium items-center"><i data-lucide="plus-square" class="w-4 h-4 text-emerald-400"></i><span>Add</span></button>
       <button type="button" id="navCodeBtn" onclick="toggleEditorPanel()" class="mobile-only px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-200 text-xs font-medium items-center"><i data-lucide="code-2" class="w-4 h-4 text-sky-400"></i><span>Code</span></button>
       <button type="button" onclick="openProjectFile()" title="Open Project" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-slate-200 text-xs font-medium flex items-center space-x-1 cursor-pointer transition">
@@ -235,6 +239,11 @@
       </div>
       <div id="selectionToolbar" hidden class="absolute top-3 right-3 z-30 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-2 flex flex-wrap items-center gap-2 max-w-[calc(100%-1.5rem)]">
         <span id="selectionCount" class="text-xs text-slate-200"></span>
+        <select id="multiStyleTarget" aria-label="Color property to apply to selected nodes" class="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200">
+          <option value="fill">Fill</option><option value="stroke">Border</option><option value="textColor">Text</option>
+        </select>
+        <input id="multiStyleColor" type="color" aria-label="Apply color to selected nodes" onchange="recordRecentColor(this.value); applyColorToSelection(this.value)" class="w-9 h-8 bg-slate-800 border border-slate-700 rounded p-1">
+        <div id="multiColorHistoryPalette" class="flex flex-wrap gap-1" aria-label="Recent colors for selected nodes"></div>
         <button id="groupSelectedBtn" type="button" onclick="beginGroupSelected()" class="px-2 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white">Group into Subgraph</button>
         <form id="groupTitleForm" hidden onsubmit="submitGroupSelected(event)" class="flex items-center gap-1">
           <label for="groupTitle" class="sr-only">Subgraph title</label>
@@ -340,9 +349,10 @@
         <div id="clusterInspectorPanel" class="hidden inspector-body overflow-y-auto flex-1 text-xs">
           <div><label for="inspectorClusterId" class="block text-slate-400 mb-1">Subgraph ID</label><input id="inspectorClusterId" readonly class="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5"></div>
           <div><label for="inspectorClusterTitle" class="block text-slate-400 mb-1">Subgraph Title</label><input id="inspectorClusterTitle" oninput="updateClusterTitle()" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5"></div>
-          <div><label for="inspectorClusterFill" class="block text-slate-400 mb-1">Fill Color</label><input type="color" id="inspectorClusterFill" onchange="updateClusterStyle()" class="w-full h-9"></div>
+          <div><label for="inspectorClusterFill" class="block text-slate-400 mb-1">Fill Color</label><input type="color" id="inspectorClusterFill" onchange="recordRecentColor(this.value); updateClusterStyle()" class="w-full h-9"></div>
+          <div><label class="block text-[11px] font-semibold text-slate-400 mb-1">Recent Colors</label><div id="clusterColorHistoryPalette" class="color-history-palette flex flex-wrap gap-1.5" aria-label="Recently used colors"></div></div>
           <div><label for="inspectorClusterOpacity" class="block text-slate-400 mb-1">Fill Opacity</label><input type="range" id="inspectorClusterOpacity" min="0" max="1" step="0.05" oninput="updateClusterStyle()" class="w-full"></div>
-          <div><label for="inspectorClusterStroke" class="block text-slate-400 mb-1">Border Color</label><input type="color" id="inspectorClusterStroke" onchange="updateClusterStyle()" class="w-full h-9"></div>
+          <div><label for="inspectorClusterStroke" class="block text-slate-400 mb-1">Border Color</label><input type="color" id="inspectorClusterStroke" onchange="recordRecentColor(this.value); updateClusterStyle()" class="w-full h-9"></div>
           <div><label for="inspectorClusterBorder" class="block text-slate-400 mb-1">Border Style</label><select id="inspectorClusterBorder" onchange="updateClusterStyle()" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="hidden">Hidden</option></select></div>
           <button id="inspectorClusterTransparent" type="button" aria-pressed="false" onclick="toggleClusterTransparent()" class="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded">Hide Background / Transparent</button>
           <button onclick="deleteSelected()" class="w-full px-2.5 py-1.5 bg-rose-950/60 border border-rose-800/60 rounded">Ungroup (Keep Contents)</button>
@@ -358,6 +368,13 @@
             <textarea id="inspectorNoteText" rows="6" maxlength="500" oninput="updateActiveNoteFromInspector()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-yellow-500 resize-y" placeholder="Observation, root cause, action item..."></textarea>
             <p class="text-[10px] text-slate-500 mt-1">Drag the yellow card on the canvas to reposition it. It follows its node.</p>
           </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label for="inspectorNoteFontSize" class="block text-[11px] font-semibold text-slate-400 mb-1">Text Size</label><input id="inspectorNoteFontSize" type="number" min="8" max="24" value="12" oninput="updateActiveNoteStyle()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5"></div>
+            <label class="flex items-center gap-2 self-end pb-2 text-[11px] text-slate-300"><input id="inspectorNoteBold" type="checkbox" onchange="updateActiveNoteStyle()" class="rounded bg-slate-800 border-slate-700">Bold text</label>
+            <div><label for="inspectorNoteTextColor" class="block text-[11px] font-semibold text-slate-400 mb-1">Text Color</label><input id="inspectorNoteTextColor" type="color" value="#fef9c3" onchange="recordRecentColor(this.value)" oninput="updateActiveNoteStyle()" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1"></div>
+            <div><label for="inspectorNoteWidth" class="block text-[11px] font-semibold text-slate-400 mb-1">Width (px)</label><input id="inspectorNoteWidth" type="number" min="140" max="500" value="190" oninput="updateActiveNoteSize()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5"></div>
+          </div>
+          <div><label for="inspectorNoteHeight" class="block text-[11px] font-semibold text-slate-400 mb-1">Height (px)</label><input id="inspectorNoteHeight" type="number" min="80" max="600" value="120" oninput="updateActiveNoteSize()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded px-2.5 py-1.5"></div>
           <button onclick="deleteActiveNote()" class="w-full px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-800/60 rounded-md text-rose-200 transition">🗑️ Delete Note</button>
         </div>
         <div id="edgeInspectorPanel" class="hidden inspector-body overflow-y-auto flex-1 text-xs">
@@ -392,6 +409,8 @@
             </select>
           </div>
           <p id="inspectorEdgeNote" class="hidden text-[11px] text-amber-300"></p>
+          <p id="inspectorEdgePortHint" class="text-[11px] text-slate-400">Drag the blue endpoint handles around either node to adjust connector attachment points.</p>
+          <button id="resetEdgePortsBtn" type="button" onclick="resetEdgePorts()" class="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-200">Reset Automatic Ports</button>
           <button onclick="deleteSelected()" class="w-full px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-800/60 rounded-md text-rose-200 transition">🗑️ Delete Selected</button>
         </div>
         <div id="nodeInspectorPanel" class="inspector-body overflow-y-auto flex-1 text-xs">
@@ -412,17 +431,22 @@
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-[11px] font-semibold text-slate-400 mb-1">Fill Color</label>
-              <input type="color" id="inspectorFillColor" oninput="updateActiveNodeColors()" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
+              <input type="color" id="inspectorFillColor" oninput="updateActiveNodeColors()" onchange="recordRecentColor(this.value)" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
             </div>
             <div>
               <label class="block text-[11px] font-semibold text-slate-400 mb-1">Border Color</label>
-              <input type="color" id="inspectorStrokeColor" oninput="updateActiveNodeColors()" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
+              <input type="color" id="inspectorStrokeColor" oninput="updateActiveNodeColors()" onchange="recordRecentColor(this.value)" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
             </div>
             <div class="col-span-2">
               <label class="block text-[11px] font-semibold text-slate-400 mb-1">Title / Font Color</label>
-              <input type="color" id="inspectorTextColor" oninput="updateActiveNodeColors()" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
+              <input type="color" id="inspectorTextColor" oninput="updateActiveNodeColors()" onchange="recordRecentColor(this.value)" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
             </div>
           </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Recent Colors</label>
+            <div id="colorHistoryPalette" class="color-history-palette flex flex-wrap gap-1.5" aria-label="Recently used colors"></div>
+          </div>
+          <button type="button" id="duplicateNodeBtn" onclick="duplicateSelectedNode()" class="w-full px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-slate-200 transition">⧉ Duplicate Selected Node</button>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-[11px] font-semibold text-slate-400 mb-1">Width (px)</label>
@@ -576,6 +600,8 @@
       if (typeof projectState.settings.autoOpenInspector !== 'boolean') projectState.settings.autoOpenInspector = false;
       if (!projectState.styles || typeof projectState.styles !== 'object' || Array.isArray(projectState.styles)) projectState.styles = {};
       if (!projectState.dimensions || typeof projectState.dimensions !== 'object' || Array.isArray(projectState.dimensions)) projectState.dimensions = {};
+      if (!Array.isArray(projectState.colorHistory)) projectState.colorHistory = [];
+      projectState.colorHistory = [...new Set(projectState.colorHistory.filter(color => /^#[0-9a-f]{6}$/i.test(color)).map(color => color.toLowerCase()))].slice(0, 10);
       Object.entries(projectState.dimensions).forEach(([id, d]) => {
         const w = Number(d?.w), h = Number(d?.h);
         if (!Number.isFinite(w) || !Number.isFinite(h)) delete projectState.dimensions[id];
@@ -617,7 +643,15 @@
       Object.entries(notes).forEach(([id, n]) => {
         if (!isObj(n) || typeof n.targetId !== 'string' || !n.targetId) { delete notes[id]; return; }
         const o = isObj(n.offset) ? n.offset : {};
-        notes[id] = { targetId: n.targetId, text: String(n.text ?? '').slice(0, 500), offset: { x: Number(o.x) || 0, y: Number(o.y) || 0 } };
+        notes[id] = {
+          targetId: n.targetId, text: String(n.text ?? '').slice(0, 500),
+          offset: { x: Number(o.x) || 0, y: Number(o.y) || 0 },
+          width: Math.max(140, Math.min(500, Number(n.width) || NOTE_W)),
+          height: Math.max(80, Math.min(600, Number(n.height) || 120)),
+          fontSize: Math.max(8, Math.min(24, Number(n.fontSize) || 12)),
+          bold: !!n.bold,
+          textColor: /^#[0-9a-f]{6}$/i.test(n.textColor || '') ? n.textColor : '#fef9c3'
+        };
       });
     }
 
@@ -636,6 +670,8 @@
     const WORKSPACE_KEY = 'mermaid-vsm-workspace-v1';
     let canvasTabs = [], activeCanvasId = null, nextCanvasId = 1, canvasGeneration = 0;
     let workspaceSavingBlocked = false, lastSavedWorkspace = null;
+    let undoStack = [], redoStack = [], historyCurrent = '', historyPending = '', historyTimer = null, historyApplying = false;
+    let copiedNodeEntries = [];
 
     function blankProject() {
       return { title: 'Blank Canvas', mermaid: '', metrics: {}, positions: {}, clusterPositions: {}, autoFitClusters: {}, notes: {}, styles: {}, dimensions: {}, edges: {}, selectedNode: null, settings: { autoOpenInspector: false } };
@@ -670,6 +706,95 @@
       } catch (err) {
         workspaceWarning('Browser autosave is unavailable. Save all tabs as a project file before closing this page.', err);
       }
+    }
+
+    function currentHistorySnapshot() {
+      syncActiveCanvas();
+      const state = JSON.parse(JSON.stringify({ version: 1, activeCanvasId, nextCanvasId, tabs: canvasTabs }));
+      state.tabs.forEach(tab => { tab.state.selectedNode = null; });
+      return JSON.stringify(state);
+    }
+
+    function updateHistoryButtons() {
+      document.getElementById('undoBtn').disabled = undoStack.length === 0;
+      document.getElementById('redoBtn').disabled = redoStack.length === 0;
+    }
+
+    function commitPendingHistory() {
+      clearTimeout(historyTimer);
+      historyTimer = null;
+      if (!historyPending || historyPending === historyCurrent || historyApplying) return;
+      undoStack.push(historyCurrent);
+      if (undoStack.length > 100) undoStack.shift();
+      historyCurrent = historyPending;
+      historyPending = '';
+      redoStack = [];
+      updateHistoryButtons();
+    }
+
+    function checkHistoryChanges() {
+      if (historyApplying) return;
+      const snapshot = currentHistorySnapshot();
+      if (snapshot === historyCurrent || snapshot === historyPending) return;
+      historyPending = snapshot;
+      clearTimeout(historyTimer);
+      historyTimer = setTimeout(commitPendingHistory, 400);
+    }
+
+    function initializeHistory() {
+      historyCurrent = currentHistorySnapshot();
+      updateHistoryButtons();
+      setInterval(checkHistoryChanges, 250);
+    }
+
+    async function applyHistorySnapshot(snapshot) {
+      historyApplying = true;
+      clearTimeout(historyTimer);
+      historyPending = '';
+      try {
+        endNodeDrag();
+        const data = JSON.parse(snapshot);
+        canvasTabs = data.tabs;
+        activeCanvasId = data.activeCanvasId;
+        nextCanvasId = data.nextCanvasId;
+        resetInteractionState();
+        if (panZoomInstance) { panZoomInstance.destroy(); panZoomInstance = null; }
+        nodeIndex = {}; edgeIndex = [];
+        const tab = canvasTabs.find(item => item.id === activeCanvasId);
+        if (!tab) throw new Error('History snapshot does not contain its active canvas.');
+        projectState = tab.state;
+        pendingConnectionPositions = tab.pendingPositions || null;
+        pendingClusterPositions = tab.pendingClusterPositions || null;
+        normalizePositions();
+        mermaidCodeInput.value = projectState.mermaid;
+        updateLineNumbers(); renderCanvasTabs(); calculateVSMMetrics(); renderColorHistoryPalette();
+        await renderDiagram();
+        saveWorkspace();
+        historyCurrent = currentHistorySnapshot();
+      } finally {
+        historyApplying = false;
+        updateHistoryButtons();
+      }
+    }
+
+    async function undo() {
+      checkHistoryChanges();
+      commitPendingHistory();
+      if (!undoStack.length) return;
+      redoStack.push(historyCurrent);
+      const snapshot = undoStack.pop();
+      try { await applyHistorySnapshot(snapshot); }
+      catch (err) { console.error('Undo failed:', err); updateStatus('Undo failed; current canvas was not changed', 'rose'); }
+    }
+
+    async function redo() {
+      checkHistoryChanges();
+      commitPendingHistory();
+      if (!redoStack.length) return;
+      undoStack.push(historyCurrent);
+      const snapshot = redoStack.pop();
+      try { await applyHistorySnapshot(snapshot); }
+      catch (err) { console.error('Redo failed:', err); updateStatus('Redo failed; current canvas was not changed', 'rose'); }
     }
 
     function restoreWorkspace() {
@@ -743,7 +868,7 @@
       pendingClusterPositions = tab.pendingClusterPositions || null;
       normalizePositions();
       mermaidCodeInput.value = projectState.mermaid;
-      updateLineNumbers(); renderCanvasTabs(); renderDiagram(); calculateVSMMetrics(); saveWorkspace();
+      updateLineNumbers();       renderCanvasTabs(); renderDiagram(); calculateVSMMetrics(); renderColorHistoryPalette(); saveWorkspace();
     }
 
     function openCanvasTab(name, state, sourceUrl) {
@@ -787,6 +912,9 @@
       pendingClusterPositions = canvasTabs.find(t => t.id === activeCanvasId).pendingClusterPositions || null;
       if (!loadStateFromURL()) { updateLineNumbers(); renderDiagram(); }
       saveWorkspace();
+      renderColorHistoryPalette();
+      document.querySelectorAll('input[type="color"]').forEach(picker => picker.addEventListener('focus', () => { activeColorPickerId = picker.id; }));
+      initializeHistory();
       setInterval(saveWorkspace, 1000);
       window.addEventListener('pagehide', () => { endNodeDrag(); saveWorkspace(); });
       window.addEventListener('beforeunload', e => {
@@ -1018,11 +1146,13 @@
           svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
           if (panZoomInstance) panZoomInstance.destroy();
           addEdgeHitPaths(svgElement);
+          emphasizeArrowheads(svgElement);
           injectGooeyFilter(svgElement);
           buildDiagramIndex(svgElement);
           applyCustomNodeShapes();
           pruneOrphanPositions();
           pruneOrphanDimensions();
+          applyDefaultNodeDimensions();
           if (pruneMetricsOnRender) pruneOrphanNotes();
           pruneOrphanMetrics();
           const wandSource = connectArmed ? connectSourceNodeId : disconnectSourceNodeId;
@@ -1036,6 +1166,7 @@
           fitAutoClusters();
           updateMultiSelection();
           applyIconPrimitiveStyles();
+          applyStoredNodeStyles();
           addSymbolTouchHits();
           const flowEdges = parseMermaidEdges(code);
           edgeIndex.forEach(e => {
@@ -1067,6 +1198,7 @@
           pendingClusterPositions = null;
           renderNotes();
           renderResizeOverlay();
+          renderEdgePortHandles();
           highlightCluster();
           panZoomInstance = window.svgPanZoom ? svgPanZoom(svgElement, { zoomEnabled: true, controlIconsEnabled: false, dblClickZoomEnabled: false, fit: true, center: true, minZoom: 0.2, maxZoom: 8, contain: false, viewportSelector: null, onUpdatedCTM: updateResizeOverlay }) : null;
           if (!panZoomInstance) { /* pan/zoom library unavailable: show the static diagram */ }
@@ -1161,25 +1293,53 @@
       const labels = [...svg.querySelectorAll('g.edgeLabels > g.edgeLabel')];
       const hits = [...svg.querySelectorAll('path.edge-hit[data-edge-for]')];
       const trans = kind === 'state' ? parseStateTransitions(code) : null;
+      const flowEdges = kind === 'flow' ? parseMermaidEdges(code) : [];
+      const edgeCounts = {};
       if (trans && trans.length !== paths.length) return;
       paths.forEach((path, i) => {
         let src, tgt;
         if (trans) { src = trans[i].src === 'start' ? 'root_start' : trans[i].src; tgt = trans[i].tgt === 'end' ? 'root_end' : trans[i].tgt; }
         else { const cls = path.getAttribute('class') || ''; src = (cls.match(/\bLS-(\S+)/) || [])[1]; tgt = (cls.match(/\bLE-(\S+)/) || [])[1]; }
         if (!src || !tgt) return;
-        edgeIndex.push({ path, src, tgt, hits: hits.filter(h => h.dataset.edgeFor === path.id), label: labels.length === paths.length ? labels[i] : null });
+        const pair = `${src}\0${tgt}`;
+        const idx = edgeCounts[pair] || 0;
+        edgeCounts[pair] = idx + 1;
+        const parsed = flowEdges.find(edge => edge.src === src && edge.tgt === tgt && edge.idx === idx);
+        edgeIndex.push({ path, src, tgt, idx: parsed?.idx ?? idx, hits: hits.filter(h => h.dataset.edgeFor === path.id), label: labels.length === paths.length ? labels[i] : null });
       });
     }
 
     function applyIconPrimitiveStyles() {
       Object.values(nodeIndex).forEach(n => {
+        const id = n.el.dataset.nodeKey;
+        const parsed = parseNodeDefinition(mermaidCodeInput.value, id);
         const icon = n.foreignObject?.querySelector('[data-icon]')?.dataset.icon;
         if (!ICON_PRIMITIVES.has(icon)) return;
-        n.shapeElements.forEach(({ element }) => {
-          element.style.setProperty('fill', 'none', 'important');
-          element.style.setProperty('stroke', 'none', 'important');
+        const style = projectState.styles?.[id];
+        n.shapeElements.forEach(({ element }, index) => {
+          const visible = !!parsed?.borderVisible;
+          element.style.setProperty('fill', visible && index === 0 ? style?.fill || '#1e293b' : 'none', 'important');
+          element.style.setProperty('stroke', visible && index === 0 ? style?.stroke || '#475569' : 'none', 'important');
+          element.style.setProperty('stroke-width', visible && index === 0 ? '2px' : '0', 'important');
           element.style.setProperty('pointer-events', 'none', 'important');
         });
+      });
+    }
+
+    function applyStoredNodeStyles() {
+      Object.entries(projectState.styles || {}).forEach(([id, style]) => {
+        const n = nodeIndex[id];
+        if (!n) return;
+        const isIcon = ICON_PRIMITIVES.has(parseNodeDefinition(mermaidCodeInput.value, id)?.icon);
+        const borderVisible = !!parseNodeDefinition(mermaidCodeInput.value, id)?.borderVisible;
+        if (!isIcon || borderVisible) {
+          n.shapeElements.forEach(({ element }) => {
+            if (style.fill) element.style.setProperty('fill', element.hasAttribute('data-vsm-double-outline') ? 'none' : style.fill, 'important');
+            if (style.stroke) element.style.setProperty('stroke', style.stroke, 'important');
+          });
+        }
+        const label = n.foreignObject?.querySelector('.nodeLabel');
+        if (label && style.textColor) label.style.setProperty('color', style.textColor, 'important');
       });
     }
 
@@ -1207,6 +1367,43 @@
         hit.style.pointerEvents = 'none';
         n.el.insertBefore(hit, n.el.firstChild);
         updateSymbolTouchHit(n);
+      });
+    }
+
+    function insetPolygonPoints(points, inset) {
+      if (points.length < 3) return null;
+      const area = points.reduce((sum, p, i) => {
+        const q = points[(i + 1) % points.length];
+        return sum + p.x * q.y - q.x * p.y;
+      }, 0);
+      const orientation = Math.sign(area) || 1;
+      const lines = points.map((p, i) => {
+        const q = points[(i + 1) % points.length], dx = q.x - p.x, dy = q.y - p.y;
+        const length = Math.hypot(dx, dy) || 1;
+        const nx = -dy / length * orientation, ny = dx / length * orientation;
+        return { x: p.x + nx * inset, y: p.y + ny * inset, dx, dy };
+      });
+      return lines.map((line, i) => {
+        const prev = lines[(i + lines.length - 1) % lines.length];
+        const det = prev.dx * line.dy - prev.dy * line.dx;
+        if (Math.abs(det) < 1e-6) return { x: points[i].x, y: points[i].y };
+        const t = ((line.x - prev.x) * line.dy - (line.y - prev.y) * line.dx) / det;
+        return { x: prev.x + t * prev.dx, y: prev.y + t * prev.dy };
+      });
+    }
+
+    function defaultNodeSize(parsed) {
+      return parsed?.icon
+        ? [104, 104]
+        : ({ circle: [100, 100], diamond: [120, 100], triangle: [110, 100], hexagon: [140, 100], cylinder: [150, 86], parallelogram: [150, 80], rounded: [150, 80], stadium: [150, 80], subroutine: [150, 80] }[parsed?.shape] || [160, 80]);
+    }
+
+    function applyDefaultNodeDimensions() {
+      Object.entries(nodeIndex).forEach(([id, n]) => {
+        const preferred = defaultNodeSize(parseNodeDefinition(mermaidCodeInput.value, id));
+        n.baseWidth = preferred[0];
+        n.baseHeight = preferred[1];
+        if (!projectState.dimensions?.[id]) applyNodeDimensions(id, preferred[0], preferred[1]);
       });
     }
 
@@ -1245,15 +1442,33 @@
         if (!parsed.doubleBorder) return;
         const base = n.shapeElements.find(({ element }) => !element.hasAttribute('data-vsm-double-outline'));
         if (!base) return;
-        const box = base.element.getBBox();
         const outline = base.element.cloneNode(true);
         outline.removeAttribute('id');
         outline.setAttribute('data-vsm-double-outline', 'true');
         outline.style.setProperty('fill', 'none', 'important');
-        const insetTransform = `translate(${box.x + box.width / 2} ${box.y + box.height / 2}) scale(0.86) translate(${-box.x - box.width / 2} ${-box.y - box.height / 2})${base.transform ? ` ${base.transform}` : ''}`;
-        outline.setAttribute('transform', insetTransform);
+        const tag = base.element.tagName.toLowerCase();
+        const inset = 4;
+        if (tag === 'polygon') {
+          const inner = insetPolygonPoints([...base.element.points].map(p => ({ x: p.x, y: p.y })), inset);
+          if (inner) outline.setAttribute('points', inner.map(p => `${p.x},${p.y}`).join(' '));
+        } else if (tag === 'rect') {
+          const x = Number(base.element.getAttribute('x') || 0), y = Number(base.element.getAttribute('y') || 0);
+          const width = Number(base.element.getAttribute('width') || 0), height = Number(base.element.getAttribute('height') || 0);
+          outline.setAttribute('x', String(x + inset)); outline.setAttribute('y', String(y + inset));
+          outline.setAttribute('width', String(Math.max(0, width - inset * 2))); outline.setAttribute('height', String(Math.max(0, height - inset * 2)));
+          if (base.element.hasAttribute('rx')) outline.setAttribute('rx', String(Math.max(0, Number(base.element.getAttribute('rx')) - inset)));
+          if (base.element.hasAttribute('ry')) outline.setAttribute('ry', String(Math.max(0, Number(base.element.getAttribute('ry')) - inset)));
+        } else if (tag === 'circle') {
+          outline.setAttribute('r', String(Math.max(0, Number(base.element.getAttribute('r')) - inset)));
+        } else if (tag === 'ellipse') {
+          outline.setAttribute('rx', String(Math.max(0, Number(base.element.getAttribute('rx')) - inset)));
+          outline.setAttribute('ry', String(Math.max(0, Number(base.element.getAttribute('ry')) - inset)));
+        } else {
+          const box = base.element.getBBox();
+          outline.setAttribute('transform', `translate(${box.x + box.width / 2} ${box.y + box.height / 2}) scale(0.9) translate(${-box.x - box.width / 2} ${-box.y - box.height / 2})${base.transform ? ` ${base.transform}` : ''}`);
+        }
         n.el.insertBefore(outline, base.element.nextSibling);
-        n.shapeElements.push({ element: outline, transform: insetTransform });
+        n.shapeElements.push({ element: outline, transform: outline.getAttribute('transform') || '' });
       });
     }
 
@@ -1306,7 +1521,7 @@
       if (!n) return false;
       const w = Math.max(60, Number(width) || n.baseWidth);
       const h = Math.max(40, Number(height) || n.baseHeight);
-      const sx = w / n.baseWidth, sy = h / n.baseHeight;
+      const sx = w / Math.max(1, n.baseBox.width), sy = h / Math.max(1, n.baseBox.height);
       const baseCenterX = n.baseBox.x + n.baseWidth / 2, baseCenterY = n.baseBox.y + n.baseHeight / 2;
       n.shapeElements.forEach(({ element, transform }) => {
         element.setAttribute('transform', `scale(${sx} ${sy}) translate(${-baseCenterX} ${-baseCenterY})${transform ? ` ${transform}` : ''}`);
@@ -1503,13 +1718,27 @@
       const s = Math.sign(horizontal ? dx : dy) || 1;
       const parallel = edgeIndex.filter(other => (other.src === e.src && other.tgt === e.tgt) || (other.src === e.tgt && other.tgt === e.src));
       const offset = (parallel.indexOf(e) - (parallel.length - 1) / 2) * 28;
+      const saved = projectState.edges?.[edgeKey(e)];
+      const portPoint = (id, port) => {
+        const n = nodeIndex[id];
+        if (!n || !port || !Number.isFinite(port.x) || !Number.isFinite(port.y)) return null;
+        return pointBetweenParents({
+          x: n.box.x + Math.max(0, Math.min(1, port.x)) * n.box.width,
+          y: n.box.y + Math.max(0, Math.min(1, port.y)) * n.box.height
+        }, n.el, e.path.parentNode);
+      };
+      const sourcePort = portPoint(e.src, saved?.sourcePort), targetPort = portPoint(e.tgt, saved?.targetPort);
       let x1, y1, x2, y2, d;
       if (horizontal) {
         x1 = s > 0 ? a.right : a.left; y1 = a.cy; x2 = s > 0 ? b.left : b.right; y2 = b.cy;
+        if (sourcePort) { x1 = sourcePort.x; y1 = sourcePort.y; }
+        if (targetPort) { x2 = targetPort.x; y2 = targetPort.y; }
         const h = (x2 - x1) / 2;
         d = `M ${x1} ${y1} C ${x1 + h} ${y1 + offset}, ${x2 - h} ${y2 + offset}, ${x2} ${y2}`;
       } else {
         x1 = a.cx; y1 = s > 0 ? a.bottom : a.top; x2 = b.cx; y2 = s > 0 ? b.top : b.bottom;
+        if (sourcePort) { x1 = sourcePort.x; y1 = sourcePort.y; }
+        if (targetPort) { x2 = targetPort.x; y2 = targetPort.y; }
         const h = (y2 - y1) / 2;
         d = `M ${x1} ${y1} C ${x1 + offset} ${y1 + h}, ${x2 + offset} ${y2 - h}, ${x2} ${y2}`;
       }
@@ -1528,8 +1757,107 @@
       e.path.setAttribute('d', d);
       e.hits.forEach(h => h.setAttribute('d', d));
       placeEdgeLabel(e, (x1 + x2) / 2 + (horizontal ? 0 : offset * 0.75), (y1 + y2) / 2 + (horizontal ? offset * 0.75 : 0));
-      const ox = horizontal ? s : 0, oy = horizontal ? 0 : s;
-      return { from: { x: x1, y: y1, ox, oy }, to: { x: x2, y: y2, ox: -ox, oy: -oy } };
+      const direction = (point, bounds, fallbackX, fallbackY) => {
+        if (!point) return { x: fallbackX, y: fallbackY };
+        const distances = [
+          { d: Math.abs(point.x - bounds.left), x: -1, y: 0 },
+          { d: Math.abs(point.x - bounds.right), x: 1, y: 0 },
+          { d: Math.abs(point.y - bounds.top), x: 0, y: -1 },
+          { d: Math.abs(point.y - bounds.bottom), x: 0, y: 1 }
+        ].sort((p, q) => p.d - q.d)[0];
+        return { x: distances.x, y: distances.y };
+      };
+      const fromDir = direction(sourcePort, a, horizontal ? s : 0, horizontal ? 0 : s);
+      const toDir = direction(targetPort, b, horizontal ? -s : 0, horizontal ? 0 : -s);
+      return { from: { x: x1, y: y1, ox: fromDir.x, oy: fromDir.y }, to: { x: x2, y: y2, ox: toDir.x, oy: toDir.y } };
+    }
+
+    function renderEdgePortHandles() {
+      mermaidRender.querySelectorAll('.edge-port-handle').forEach(handle => handle.remove());
+      if (activeEdge?.kind !== 'flow') return;
+      const edge = edgeIndex.find(item => item.src === activeEdge.src && item.tgt === activeEdge.tgt && item.idx === activeEdge.idx);
+      const anchors = edge && routeEdge(edge);
+      if (!edge || !anchors) return;
+      [['source', edge.src, anchors.from], ['target', edge.tgt, anchors.to]].forEach(([endpoint, id, anchor]) => {
+        const n = nodeIndex[id], point = n && pointBetweenParents(anchor, edge.path.parentNode, n.el);
+        if (!point) return;
+        const handle = document.createElementNS(SVG_NS, 'circle');
+        handle.setAttribute('class', 'edge-port-handle');
+        handle.setAttribute('cx', point.x); handle.setAttribute('cy', point.y);
+        handle.setAttribute('r', '7'); handle.setAttribute('fill', '#60a5fa');
+        handle.setAttribute('stroke', '#eff6ff'); handle.setAttribute('stroke-width', '2');
+        handle.setAttribute('vector-effect', 'non-scaling-stroke');
+        handle.setAttribute('pointer-events', 'all');
+        handle.dataset.edgePort = endpoint; handle.dataset.nodeId = id;
+        handle.style.cursor = 'grab';
+        n.el.appendChild(handle);
+      });
+    }
+
+    function startPortDrag(e, handle) {
+      const id = handle.dataset.nodeId, n = nodeIndex[id], p = n && svgPointFor(n.el, e);
+      if (!n || !p || !activeEdge) return;
+      e.preventDefault(); e.stopPropagation();
+      drag = { kind: 'port', id, n, el: n.el, parent: n.el, start: p, sx: e.clientX, sy: e.clientY, active: false, pointerId: e.pointerId, endpoint: handle.dataset.edgePort };
+      try { n.el.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
+      if (panZoomInstance) panZoomInstance.disablePan();
+      window.addEventListener('pointermove', onNodeDragMove);
+      window.addEventListener('pointerup', endNodeDrag);
+      window.addEventListener('pointercancel', endNodeDrag);
+      window.addEventListener('pointerdown', onExtraPointerDown, true);
+    }
+
+    function closestShapePoint(n, point) {
+      const shape = n.shapeElements.find(item => !item.element.hasAttribute('data-vsm-double-outline'))?.element;
+      if (!shape) return { x: Math.max(n.box.x, Math.min(n.box.x + n.box.width, point.x)), y: Math.max(n.box.y, Math.min(n.box.y + n.box.height, point.y)) };
+      const nodeMatrix = n.el.getScreenCTM(), shapeMatrix = shape.getScreenCTM();
+      if (!nodeMatrix || !shapeMatrix) return point;
+      const toShape = shapeMatrix.inverse().multiply(nodeMatrix);
+      const local = new DOMPoint(point.x, point.y).matrixTransform(toShape);
+      const tag = shape.tagName.toLowerCase();
+      let candidate = null;
+      if (tag === 'polygon') {
+        let best = Infinity;
+        [...shape.points].forEach((a, i, points) => {
+          const b = points[(i + 1) % points.length], dx = b.x - a.x, dy = b.y - a.y;
+          const t = Math.max(0, Math.min(1, ((local.x - a.x) * dx + (local.y - a.y) * dy) / (dx * dx + dy * dy || 1)));
+          const q = { x: a.x + t * dx, y: a.y + t * dy }, d = (q.x - local.x) ** 2 + (q.y - local.y) ** 2;
+          if (d < best) { best = d; candidate = q; }
+        });
+      } else if (tag === 'path' && typeof shape.getTotalLength === 'function') {
+        let best = Infinity, length = shape.getTotalLength();
+        for (let i = 0; i <= 160; i++) {
+          const q = shape.getPointAtLength(length * i / 160), d = (q.x - local.x) ** 2 + (q.y - local.y) ** 2;
+          if (d < best) { best = d; candidate = { x: q.x, y: q.y }; }
+        }
+      } else if (tag === 'circle' || tag === 'ellipse') {
+        const cx = Number(shape.getAttribute('cx') || 0), cy = Number(shape.getAttribute('cy') || 0);
+        const rx = tag === 'circle' ? Number(shape.getAttribute('r')) : Number(shape.getAttribute('rx'));
+        const ry = tag === 'circle' ? rx : Number(shape.getAttribute('ry'));
+        const angle = Math.atan2((local.y - cy) / Math.max(ry, 1), (local.x - cx) / Math.max(rx, 1));
+        candidate = { x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) };
+      } else {
+        const box = shape.getBBox(), distances = [
+          { d: Math.abs(local.x - box.x), x: box.x, y: Math.max(box.y, Math.min(box.y + box.height, local.y)) },
+          { d: Math.abs(local.x - box.x - box.width), x: box.x + box.width, y: Math.max(box.y, Math.min(box.y + box.height, local.y)) },
+          { d: Math.abs(local.y - box.y), x: Math.max(box.x, Math.min(box.x + box.width, local.x)), y: box.y },
+          { d: Math.abs(local.y - box.y - box.height), x: Math.max(box.x, Math.min(box.x + box.width, local.x)), y: box.y + box.height }
+        ];
+        candidate = distances.sort((a, b) => a.d - b.d)[0];
+      }
+      if (!candidate) return point;
+      const toNode = nodeMatrix.inverse().multiply(shapeMatrix);
+      return new DOMPoint(candidate.x, candidate.y).matrixTransform(toNode);
+    }
+
+    function resetEdgePorts() {
+      if (!activeEdge || activeEdge.kind !== 'flow') return;
+      const key = edgeKey(activeEdge), saved = projectState.edges?.[key];
+      if (!saved) return;
+      delete saved.sourcePort; delete saved.targetPort;
+      if (!Object.keys(saved).length) delete projectState.edges[key];
+      renderEdgePortHandles();
+      edgeIndex.filter(edge => edge.src === activeEdge.src && edge.tgt === activeEdge.tgt && edge.idx === activeEdge.idx).forEach(routeEdge);
     }
 
     // Returns the anchor sockets (edge endpoints) that sit on nodeId.
@@ -1721,6 +2049,10 @@
       if (e.pointerType === 'mouse' ? e.button !== 0 : !e.isPrimary) return;
       const resizeHandle = e.target.closest?.('.resize-handle');
       if (resizeHandle) { startNodeResize(e, resizeHandle); return; }
+      const portHandle = e.target.closest?.('.edge-port-handle');
+      if (portHandle) { startPortDrag(e, portHandle); return; }
+      const noteResizeHandle = e.target.closest?.('.note-resize-handle');
+      if (noteResizeHandle) { startNoteResize(e, noteResizeHandle); return; }
       const noteEl = e.target.closest?.('g.process-note');
       if (noteEl) { startNoteDrag(e, noteEl); return; }
       const id = cleanNodeId(e.target);
@@ -1775,6 +2107,20 @@
       window.addEventListener('pointerdown', onExtraPointerDown, true);
     }
 
+    function startNoteResize(e, handle) {
+      const id = handle.dataset.noteResize, note = projectState.notes?.[id];
+      const layer = handle.closest('#notesLayer'), p = layer && svgPointFor(layer, e);
+      if (!note || !p) return;
+      e.preventDefault(); e.stopPropagation();
+      drag = { kind: 'note-resize', id, el: layer, parent: layer, start: p, sx: e.clientX, sy: e.clientY, active: false, pointerId: e.pointerId, w0: Number(note.width) || NOTE_W, h0: Number(note.height) || 120 };
+      try { layer.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
+      if (panZoomInstance) panZoomInstance.disablePan();
+      window.addEventListener('pointermove', onNodeDragMove);
+      window.addEventListener('pointerup', endNodeDrag);
+      window.addEventListener('pointercancel', endNodeDrag);
+      window.addEventListener('pointerdown', onExtraPointerDown, true);
+    }
+
     function onNodeDragMove(e) {
       if (!drag || e.pointerId !== drag.pointerId) return;
       if (!(e.buttons & 1)) { endNodeDrag(); return; }
@@ -1815,6 +2161,32 @@
         if (!note) return;
         note.offset = { x: drag.ox + (p.x - drag.start.x), y: drag.oy + (p.y - drag.start.y) };
         placeNote(drag.id);
+        return;
+      }
+      if (drag.kind === 'note-resize') {
+        const note = projectState.notes?.[drag.id];
+        if (!note) return;
+        note.width = Math.max(140, Math.min(500, drag.w0 + p.x - drag.start.x));
+        note.height = Math.max(80, Math.min(600, drag.h0 + p.y - drag.start.y));
+        renderNotes(); setActiveNote(drag.id);
+        if (activeNoteId === drag.id) {
+          document.getElementById('inspectorNoteWidth').value = String(Math.round(note.width));
+          document.getElementById('inspectorNoteHeight').value = String(Math.round(note.height));
+        }
+        return;
+      }
+      if (drag.kind === 'port') {
+        const q = closestShapePoint(drag.n, p);
+        const key = edgeKey(activeEdge), saved = projectState.edges?.[key] || { source: activeEdge.src, target: activeEdge.tgt };
+        saved[drag.endpoint === 'source' ? 'sourcePort' : 'targetPort'] = {
+          x: Math.max(0, Math.min(1, (q.x - drag.n.box.x) / Math.max(1, drag.n.box.width))),
+          y: Math.max(0, Math.min(1, (q.y - drag.n.box.y) / Math.max(1, drag.n.box.height)))
+        };
+        projectState.edges = projectState.edges || {};
+        projectState.edges[key] = saved;
+        const edge = edgeIndex.find(item => item.src === activeEdge.src && item.tgt === activeEdge.tgt && item.idx === activeEdge.idx);
+        if (edge) routeEdge(edge);
+        renderEdgePortHandles();
         return;
       }
       if (drag.kind === 'resize') {
@@ -1873,7 +2245,7 @@
       } else if (drag.active && drag.kind === 'note') {
         const note = projectState.notes?.[drag.id];
         if (note) note.offset = { x: Math.round(note.offset.x), y: Math.round(note.offset.y) };
-      } else if (drag.active && drag.kind !== 'resize' && drag.kind !== 'cluster') {
+      } else if (drag.active && drag.kind !== 'resize' && drag.kind !== 'cluster' && drag.kind !== 'note-resize' && drag.kind !== 'port') {
         projectState.positions = projectState.positions || {};
         const pos = { x: Math.round((drag.n.x - drag.n.baseX) * 10) / 10, y: Math.round((drag.n.y - drag.n.baseY) * 10) / 10 };
         if (pos.x || pos.y) projectState.positions[drag.id] = pos; else delete projectState.positions[drag.id];
@@ -1885,11 +2257,12 @@
     }
 
     // ---- Process Notes: yellow cards attached to nodes, drawn in #notesLayer so they pan/zoom/export with the diagram ----
-    const NOTE_W = 190, NOTE_HEAD = 22, NOTE_PAD = 8, NOTE_LINE = 15;
+    const NOTE_W = 190, NOTE_HEAD = 22, NOTE_PAD = 8;
     const noteMeasure = document.createElement('canvas').getContext('2d');
 
-    function wrapNoteText(text, maxW) {
-      noteMeasure.font = '12px sans-serif';
+    function wrapNoteText(text, maxW, fontSize = 12, bold = false) {
+      noteMeasure.font = `${bold ? 'bold ' : ''}${fontSize}px sans-serif`;
+      const lineHeight = Math.ceil(fontSize * 1.25);
       const lines = [];
       String(text).split('\n').forEach(par => {
         let line = '';
@@ -1903,7 +2276,7 @@
         });
         lines.push(line);
       });
-      return lines;
+      return { lines, lineHeight };
     }
 
     function getNotesLayer(create) {
@@ -1930,30 +2303,34 @@
     }
 
     function buildNoteCard(id, note) {
-      const lines = wrapNoteText(note.text, NOTE_W - NOTE_PAD * 2);
-      const h = NOTE_HEAD + NOTE_PAD + lines.length * NOTE_LINE + NOTE_PAD / 2;
+      const w = Math.max(140, Number(note.width) || NOTE_W);
+      const fontSize = Math.max(8, Math.min(24, Number(note.fontSize) || 12));
+      const wrapped = wrapNoteText(note.text, w - NOTE_PAD * 2, fontSize, !!note.bold);
+      const h = Math.max(Number(note.height) || 80, NOTE_HEAD + NOTE_PAD + wrapped.lines.length * wrapped.lineHeight + NOTE_PAD / 2, 80);
       const g = document.createElementNS(SVG_NS, 'g');
-      g.setAttribute('class', 'process-note'); g.dataset.noteId = id; g.dataset.w = NOTE_W; g.dataset.h = h;
+      g.setAttribute('class', 'process-note'); g.dataset.noteId = id; g.dataset.w = w; g.dataset.h = h;
       const mk = (tag, attrs, text) => {
         const el = document.createElementNS(SVG_NS, tag);
         Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
         if (text !== undefined) el.textContent = text;
         g.appendChild(el); return el;
       };
-      mk('rect', { width: NOTE_W, height: h, rx: 6, fill: '#422006', stroke: '#fde047', 'stroke-width': 1.5 });
-      mk('rect', { width: NOTE_W, height: NOTE_HEAD, rx: 6, fill: '#713f12', stroke: 'none' });
-      mk('rect', { y: NOTE_HEAD - 6, width: NOTE_W, height: 6, fill: '#713f12', stroke: 'none' });
+      mk('rect', { width: w, height: h, rx: 6, fill: '#422006', stroke: '#fde047', 'stroke-width': 1.5 });
+      mk('rect', { width: w, height: NOTE_HEAD, rx: 6, fill: '#713f12', stroke: 'none' });
+      mk('rect', { y: NOTE_HEAD - 6, width: w, height: 6, fill: '#713f12', stroke: 'none' });
       mk('text', { x: NOTE_PAD, y: 15, fill: '#ca8a04', 'font-weight': 'bold', 'font-size': 11, 'font-family': 'sans-serif' }, 'Process Note');
-      const t = mk('text', { x: NOTE_PAD, y: NOTE_HEAD + NOTE_PAD + 10, fill: '#fef9c3', 'font-size': 12, 'font-family': 'sans-serif' });
-      lines.forEach((ln, i) => {
+      const t = mk('text', { x: NOTE_PAD, y: NOTE_HEAD + NOTE_PAD + fontSize, fill: note.textColor || '#fef9c3', 'font-size': fontSize, 'font-weight': note.bold ? 'bold' : 'normal', 'font-family': 'sans-serif' });
+      wrapped.lines.forEach((ln, i) => {
         const ts = document.createElementNS(SVG_NS, 'tspan');
-        ts.setAttribute('x', NOTE_PAD); ts.setAttribute('dy', i ? NOTE_LINE : 0);
+        ts.setAttribute('x', NOTE_PAD); ts.setAttribute('dy', i ? wrapped.lineHeight : 0);
         ts.setAttribute('xml:space', 'preserve');
         ts.textContent = ln || ' ';
         t.appendChild(ts);
       });
-      const sel = mk('rect', { class: 'note-sel', x: -3, y: -3, width: NOTE_W + 6, height: h + 6, rx: 8, fill: 'none', stroke: '#facc15', 'stroke-width': 2, 'stroke-dasharray': '4,3' });
+      const sel = mk('rect', { class: 'note-sel', x: -3, y: -3, width: w + 6, height: h + 6, rx: 8, fill: 'none', stroke: '#facc15', 'stroke-width': 2, 'stroke-dasharray': '4,3' });
       sel.style.display = id === activeNoteId ? '' : 'none';
+      const handle = mk('rect', { class: 'note-resize-handle', 'data-note-resize': id, x: w - 9, y: h - 9, width: 12, height: 12, rx: 2, fill: '#fef08a', stroke: '#854d0e', 'stroke-width': 1 });
+      handle.style.cursor = 'nwse-resize';
       return g;
     }
 
@@ -2044,6 +2421,11 @@
       document.getElementById('inspectorNoteTarget').value = note.targetId;
       const ta = document.getElementById('inspectorNoteText');
       ta.value = note.text;
+      document.getElementById('inspectorNoteFontSize').value = String(note.fontSize || 12);
+      document.getElementById('inspectorNoteBold').checked = !!note.bold;
+      document.getElementById('inspectorNoteTextColor').value = note.textColor || '#fef9c3';
+      document.getElementById('inspectorNoteWidth').value = String(note.width || NOTE_W);
+      document.getElementById('inspectorNoteHeight').value = String(note.height || 120);
       switchInspectorTab('note');
       showInspectorDrawer();
       ta.focus();
@@ -2054,6 +2436,26 @@
       if (!note) return;
       note.text = document.getElementById('inspectorNoteText').value.slice(0, 500);
       renderNotes(); setActiveNote(activeNoteId);
+    }
+
+    function updateActiveNoteStyle() {
+      const note = projectState.notes?.[activeNoteId];
+      if (!note) return;
+      note.fontSize = Math.max(8, Math.min(24, Number(document.getElementById('inspectorNoteFontSize').value) || 12));
+      note.bold = document.getElementById('inspectorNoteBold').checked;
+      note.textColor = document.getElementById('inspectorNoteTextColor').value;
+      renderNotes(); setActiveNote(activeNoteId);
+      document.getElementById('inspectorNoteFontSize').value = String(note.fontSize);
+    }
+
+    function updateActiveNoteSize() {
+      const note = projectState.notes?.[activeNoteId];
+      if (!note) return;
+      note.width = Math.max(140, Math.min(500, Number(document.getElementById('inspectorNoteWidth').value) || NOTE_W));
+      note.height = Math.max(80, Math.min(600, Number(document.getElementById('inspectorNoteHeight').value) || 120));
+      renderNotes(); setActiveNote(activeNoteId);
+      document.getElementById('inspectorNoteWidth').value = String(note.width);
+      document.getElementById('inspectorNoteHeight').value = String(note.height);
     }
 
     function deleteActiveNote() {
@@ -2070,6 +2472,137 @@
       let id = base, i = 2;
       while (new RegExp('(^|[^\\w])' + id + '(?![\\w])').test(code) || projectState.metrics?.[id]) id = base + i++;
       return id;
+    }
+
+    function copySelectedNodes() {
+      const ids = multiSelection.size ? [...multiSelection] : activeNodeId ? [activeNodeId] : [];
+      if (!ids.length || diagramKind(mermaidCodeInput.value) !== 'flow') return false;
+      const clone = value => JSON.parse(JSON.stringify(value));
+      const entries = ids.map(sourceId => {
+        const node = nodeIndex[sourceId], parsed = node && parseNodeDefinition(mermaidCodeInput.value, sourceId);
+        if (!node || !parsed) return null;
+        const metrics = clone(projectState.metrics[sourceId] || {});
+        Object.assign(metrics, {
+          title: parsed.title, shape: parsed.shape, icon: parsed.icon, bold: parsed.bold,
+          doubleBorder: parsed.doubleBorder, borderVisible: parsed.borderVisible
+        });
+        return {
+          sourceId,
+          metrics,
+          style: projectState.styles?.[sourceId] ? clone(projectState.styles[sourceId]) : null,
+          mermaidStyle: mermaidCodeInput.value.match(new RegExp('^[ \\t]*style[ \\t]+' + escapeRegExp(sourceId) + '(?![\\w])[^\\n]*', 'm'))?.[0] || '',
+          dimensions: projectState.dimensions?.[sourceId] ? clone(projectState.dimensions[sourceId]) : null,
+          x: node.x,
+          y: node.y,
+          notes: Object.entries(projectState.notes || {}).filter(([, note]) => note.targetId === sourceId).map(([id, note]) => ({ id, note: clone(note) }))
+        };
+      }).filter(Boolean);
+      if (!entries.length) { updateStatus('Select one or more flowchart nodes to copy', 'amber'); return false; }
+      copiedNodeEntries = entries;
+      updateStatus(`Copied ${entries.length} node${entries.length === 1 ? '' : 's'}`, 'emerald');
+      return true;
+    }
+
+    async function pasteCopiedNodes() {
+      if (!copiedNodeEntries.length || diagramKind(mermaidCodeInput.value) !== 'flow') return;
+      const clone = value => JSON.parse(JSON.stringify(value));
+      const pasted = copiedNodeEntries.map(entry => ({ entry, id: uniqueNodeId(`${entry.sourceId}Copy`) }));
+      try {
+        projectState.metrics = projectState.metrics || {};
+        projectState.styles = projectState.styles || {};
+        projectState.dimensions = projectState.dimensions || {};
+        projectState.notes = projectState.notes || {};
+        projectState.mermaid = mermaidCodeInput.value = `${mermaidCodeInput.value.trimEnd()}\n${pasted.map(({ id }) => `    ${id}`).join('\n')}`;
+        pasted.forEach(({ entry, id }) => {
+          projectState.metrics[id] = clone(entry.metrics);
+          if (entry.style) projectState.styles[id] = clone(entry.style);
+          if (entry.dimensions) projectState.dimensions[id] = clone(entry.dimensions);
+          entry.notes.forEach(({ id: noteId, note }, index) => {
+            let copyId = `${noteId}Copy`, suffix = 2;
+            while (projectState.notes[copyId]) copyId = `${noteId}Copy${suffix++}`;
+            projectState.notes[copyId] = {
+              ...clone(note), targetId: id,
+              offset: { x: note.offset.x + 32 + index * 12, y: note.offset.y + 32 + index * 12 }
+            };
+          });
+        });
+        pasted.forEach(({ entry, id }) => {
+          syncNodeToMermaid(id, projectState.metrics[id]);
+          syncNodeStyleToMermaid(id);
+          if (!entry.style && entry.mermaidStyle) {
+            const styleLine = entry.mermaidStyle.replace(
+              new RegExp('(^[ \\t]*style[ \\t]+)' + escapeRegExp(entry.sourceId) + '(?![\\w])'),
+              (_, prefix) => prefix + id
+            );
+            mermaidCodeInput.value = projectState.mermaid = `${mermaidCodeInput.value.trimEnd()}\n${styleLine}\n`;
+          }
+        });
+        updateLineNumbers();
+        await renderDiagram();
+        pasted.forEach(({ entry, id }) => {
+          const duplicate = nodeIndex[id];
+          if (!duplicate) return;
+          projectState.positions = projectState.positions || {};
+          projectState.positions[id] = {
+            x: entry.x + 40 - duplicate.baseX,
+            y: entry.y + 40 - duplicate.baseY
+          };
+        });
+        applyStoredPositions();
+        renderNotes();
+        clearMultiSelection();
+        if (pasted.length > 1) {
+          closeInspector();
+          pasted.forEach(({ id }) => multiSelection.add(id));
+          updateMultiSelection();
+        } else openInspector(pasted[0].id);
+        updateStatus(`Pasted ${pasted.length} node${pasted.length === 1 ? '' : 's'}`, 'emerald');
+      } catch (err) {
+        console.error('Paste failed:', err);
+        updateStatus(`Paste failed: ${err.message}`, 'rose');
+      }
+    }
+
+    async function duplicateSelectedNode() {
+      const sourceId = activeNodeId;
+      const source = sourceId && nodeIndex[sourceId];
+      if (!source || diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Select a flowchart node to duplicate', 'amber'); return; }
+      const parsed = parseNodeDefinition(mermaidCodeInput.value, sourceId);
+      if (!parsed) { updateStatus('This object cannot be duplicated as a flowchart node', 'amber'); return; }
+      const id = uniqueNodeId(`${sourceId}Copy`);
+      const clone = value => JSON.parse(JSON.stringify(value));
+      const metrics = clone(projectState.metrics[sourceId] || {});
+      metrics.title = parsed.title;
+      metrics.shape = parsed.shape;
+      metrics.icon = parsed.icon;
+      metrics.bold = parsed.bold;
+      metrics.doubleBorder = parsed.doubleBorder;
+      metrics.borderVisible = parsed.borderVisible;
+      projectState.metrics[id] = metrics;
+      if (projectState.styles?.[sourceId]) projectState.styles[id] = clone(projectState.styles[sourceId]);
+      if (projectState.dimensions?.[sourceId]) projectState.dimensions[id] = clone(projectState.dimensions[sourceId]);
+      projectState.mermaid = mermaidCodeInput.value = `${mermaidCodeInput.value.trimEnd()}\n    ${id}`;
+      syncNodeToMermaid(id, metrics);
+      syncNodeStyleToMermaid(id);
+      updateLineNumbers();
+      await renderDiagram();
+      const duplicate = nodeIndex[id], original = nodeIndex[sourceId];
+      if (duplicate && original) {
+        projectState.positions = projectState.positions || {};
+        projectState.positions[id] = {
+          x: original.x + 40 - duplicate.baseX,
+          y: original.y + 40 - duplicate.baseY
+        };
+        Object.entries(projectState.notes || {}).filter(([, note]) => note.targetId === sourceId).forEach(([noteId, note], i) => {
+          let copyId = `${noteId}Copy`, suffix = 2;
+          while (projectState.notes[copyId]) copyId = `${noteId}Copy${suffix++}`;
+          projectState.notes[copyId] = { ...clone(note), targetId: id, offset: { x: note.offset.x + 32 + i * 12, y: note.offset.y + 32 + i * 12 } };
+        });
+        applyStoredPositions();
+        renderNotes();
+      }
+      openInspector(id);
+      updateStatus(`Duplicated ${sourceId} as ${id}`, 'emerald');
     }
 
     // svg-pan-zoom applies pan/zoom on the next animation frame; the timeout keeps this from hanging in background tabs.
@@ -2263,7 +2796,33 @@
     function deleteSelected() {
       if (activeNoteId) { deleteActiveNote(); return; }
       if (activeClusterId) return deleteCluster(false);
+      if (multiSelection.size) return deleteSelectedNodes();
       return deleteSelectedNodeOrEdge();
+    }
+
+    async function deleteSelectedNodes() {
+      if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Multi-node deletion works on flowcharts only', 'amber'); return; }
+      const ids = [...multiSelection].filter(id => nodeIndex[id]);
+      if (!ids.length) { clearMultiSelection(); return; }
+      preserveConnectionPositions();
+      let code = mermaidCodeInput.value;
+      ids.forEach(id => {
+        code = deleteFromFlowchart(code, id, null);
+        delete projectState.metrics[id];
+        delete projectState.positions?.[id];
+        delete projectState.styles?.[id];
+        delete projectState.dimensions?.[id];
+        Object.entries(projectState.notes || {}).forEach(([noteId, note]) => { if (note.targetId === id) delete projectState.notes[noteId]; });
+        Object.entries(projectState.edges || {}).forEach(([key, edge]) => {
+          if (edge.source === id || edge.target === id) delete projectState.edges[key];
+        });
+      });
+      mermaidCodeInput.value = projectState.mermaid = code;
+      closeInspector();
+      clearMultiSelection();
+      updateLineNumbers(); calculateVSMMetrics();
+      await renderDiagram();
+      updateStatus(`Deleted ${ids.length} selected node${ids.length === 1 ? '' : 's'}`, 'emerald');
     }
 
     async function deleteSelectedNodeOrEdge() {
@@ -2301,7 +2860,7 @@
       // The diagram code is the source of truth: shape, icon and title are read from one definition.
       const parsed = isFlowchart ? parseNodeDefinition(code, nodeId) : null;
       const sub = isFlowchart && !parsed ? findSubgraph(code, nodeId) : null;
-      if (parsed) { m.shape = parsed.shape; m.icon = parsed.icon; m.title = parsed.title || nodeId; m.bold = !!parsed.bold; m.doubleBorder = !!parsed.doubleBorder; }
+      if (parsed) { m.shape = parsed.shape; m.icon = parsed.icon; m.title = parsed.title ?? nodeId; m.bold = !!parsed.bold; m.doubleBorder = !!parsed.doubleBorder; m.borderVisible = !!parsed.borderVisible; }
       else if (sub) { m.shape = 'rect'; m.icon = ''; m.title = sub.label; }
       else if (kind === 'sequence') { m.shape = 'rect'; m.icon = ''; m.title = parseSequenceParticipants(code)[nodeId]?.label || nodeId; }
       else if (kind === 'state' && /^root_(start|end)$/.test(nodeId)) { m.shape = 'rect'; m.icon = ''; m.title = nodeId === 'root_start' ? 'Start [*]' : 'End [*]'; }
@@ -2326,8 +2885,9 @@
       shapeSel.value = ICON_PRIMITIVES.has(m.icon) ? `icon:${m.icon}` : m.shape;
       shapeSel.disabled = !isFlowchart || !!sub;
       const doubleBorder = document.getElementById('inspectorDoubleBorder');
-      doubleBorder.checked = !!m.doubleBorder;
-      doubleBorder.disabled = !isFlowchart || !!sub || ICON_PRIMITIVES.has(m.icon);
+      doubleBorder.checked = ICON_PRIMITIVES.has(m.icon) ? !!m.borderVisible : !!m.doubleBorder;
+      doubleBorder.disabled = !isFlowchart || !!sub;
+      doubleBorder.closest('label').lastChild.textContent = ICON_PRIMITIVES.has(m.icon) ? ' Show symbol border' : ' Double-line outline';
       ['inspectorOwner', 'inspectorCT', 'inspectorCO', 'inspectorWIP', 'inspectorFriction'].forEach(id => { document.getElementById(id).disabled = kind === 'sequence'; });
       document.getElementById('inspectorOwner').value = m.owner || '';
       document.getElementById('inspectorCT').value = m.ct || 0;
@@ -2544,7 +3104,7 @@
     }
     function toggleInspectorCollapsed() { setInspectorCollapsed(!inspectorDrawer.classList.contains('inspector-collapsed')); }
 
-    function closeInspector() { inspectorDrawer.classList.add('hidden'); setInspectorCollapsed(false); activeNodeId = null; activeEdge = null; projectState.selectedNode = null; setActiveNote(null); clearActiveCluster(); if (clusterEditMode) disarmClusterEditMode(); renderResizeOverlay(); }
+    function closeInspector() { inspectorDrawer.classList.add('hidden'); setInspectorCollapsed(false); activeNodeId = null; activeEdge = null; projectState.selectedNode = null; setActiveNote(null); clearActiveCluster(); if (clusterEditMode) disarmClusterEditMode(); renderResizeOverlay(); mermaidRender.querySelectorAll('.edge-port-handle').forEach(handle => handle.remove()); }
 
     function switchInspectorTab(tab) {
       if (mobileMQ.matches) { setEditorCollapsed(true); setLibraryCollapsed(true); }
@@ -2572,7 +3132,13 @@
       const previous = projectState.metrics[activeNodeId];
       const icon = shapeChanged ? (selectedShape.startsWith('icon:') ? selectedShape.slice(5) : '') : previous.icon;
       const shape = shapeChanged ? (icon ? 'rect' : selectedShape) : previous.shape;
-      if (shapeChanged) document.getElementById('inspectorDoubleBorder').disabled = !!icon;
+      document.getElementById('inspectorDoubleBorder').disabled = false;
+      document.getElementById('inspectorDoubleBorder').closest('label').lastChild.textContent = icon ? ' Show symbol border' : ' Double-line outline';
+      if (shapeChanged && !projectState.dimensions?.[activeNodeId]) {
+        const [width, height] = defaultNodeSize({ shape, icon });
+        document.getElementById('inspectorNodeWidth').value = String(width);
+        document.getElementById('inspectorNodeHeight').value = String(height);
+      }
       projectState.metrics[activeNodeId] = {
         title: document.getElementById('inspectorTitle').value,
         bold: document.getElementById('inspectorBoldTitle').checked,
@@ -2583,7 +3149,8 @@
         friction: document.getElementById('inspectorFriction').checked,
         shape,
         icon,
-        doubleBorder: document.getElementById('inspectorDoubleBorder').checked
+        doubleBorder: icon ? false : document.getElementById('inspectorDoubleBorder').checked,
+        borderVisible: icon ? document.getElementById('inspectorDoubleBorder').checked : !!previous.borderVisible
       };
       syncNodeToMermaid(activeNodeId, projectState.metrics[activeNodeId]);
       calculateVSMMetrics();
@@ -2611,6 +3178,47 @@
       const rgb = String(value || '').match(/^rgba?\(\s*(\d+)[, ]+\s*(\d+)[, ]+\s*(\d+)/i);
       if (!rgb) return fallback;
       return '#' + rgb.slice(1, 4).map(n => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, '0')).join('');
+    }
+
+    let activeColorPickerId = 'inspectorFillColor';
+    function renderColorHistoryPalette() {
+      const colors = projectState.colorHistory || [];
+      document.querySelectorAll('.color-history-palette, #multiColorHistoryPalette').forEach(palette => {
+        palette.replaceChildren();
+        colors.forEach(color => {
+          const button = document.createElement('button');
+          button.type = 'button'; button.title = color; button.setAttribute('aria-label', `Use ${color}`);
+          button.className = 'w-5 h-5 rounded border border-slate-400/60 hover:scale-110 transition';
+          button.style.backgroundColor = color;
+          button.addEventListener('click', () => {
+            if (multiSelection.size > 1) { applyColorToSelection(color); return; }
+            const picker = document.getElementById(activeColorPickerId) || document.getElementById('inspectorFillColor');
+            picker.value = color; picker.dispatchEvent(new Event('input', { bubbles: true }));
+            picker.dispatchEvent(new Event('change', { bubbles: true }));
+          });
+          palette.appendChild(button);
+        });
+      });
+    }
+
+    function recordRecentColor(value) {
+      const color = normalizePickerColor(value, null);
+      if (!color) return;
+      projectState.colorHistory = [color, ...(projectState.colorHistory || []).filter(item => item !== color)].slice(0, 10);
+      renderColorHistoryPalette();
+    }
+
+    function applyColorToSelection(color) {
+      if (multiSelection.size < 2) return;
+      const property = document.getElementById('multiStyleTarget').value;
+      const code = mermaidCodeInput.value;
+      [...multiSelection].forEach(id => {
+        projectState.styles = projectState.styles || {};
+        projectState.styles[id] = { ...projectState.styles[id], [property]: color };
+        syncNodeStyleToMermaid(id);
+      });
+      if (code !== mermaidCodeInput.value) updateLineNumbers();
+      debouncedRender();
     }
 
     function getNodeColors(nodeId) {
@@ -2646,8 +3254,12 @@
       if (!style) return;
       const safeId = escapeRegExp(nodeId);
       const lineRe = new RegExp('^[ \\t]*style[ \\t]+' + safeId + '(?![\\w])[^\\n]*(?:\\n|$)', 'gm');
-      const textStyle = style.textColor ? `,color:${style.textColor}` : '';
-      const directive = `    style ${nodeId} fill:${style.fill},stroke:${style.stroke}${textStyle};`;
+      const properties = [];
+      if (style.fill) properties.push(`fill:${style.fill}`);
+      if (style.stroke) properties.push(`stroke:${style.stroke}`);
+      if (style.textColor) properties.push(`color:${style.textColor}`);
+      if (!properties.length) return;
+      const directive = `    style ${nodeId} ${properties.join(',')};`;
       const withoutOld = mermaidCodeInput.value.replace(lineRe, '');
       const code = withoutOld.replace(/\s*$/, '\n') + directive + '\n';
       if (code !== mermaidCodeInput.value) mermaidCodeInput.value = projectState.mermaid = code;
@@ -3002,8 +3614,8 @@
     };
     const LEGACY_ICONS = { process_dedicated: '🏭', process_shared: '🔀', workcell: '🧩', supplier: '🏭', customer: '👑', kaizen: '💥', milk_run: '🚚', supermarket: '🏬', inspection: '🔍' };
     const ICON_PRIMITIVES = new Set(Object.keys(ICONS));
-    function nodeLabelMetadata(shape, doubleBorder) {
-      return `${shape === 'triangle' ? ` data-vsm-shape='triangle'` : ''}${doubleBorder ? ` data-vsm-double='true'` : ''}`;
+    function nodeLabelMetadata(shape, doubleBorder, borderVisible) {
+      return `${shape === 'triangle' ? ` data-vsm-shape='triangle'` : ''}${doubleBorder ? ` data-vsm-double='true'` : ''}${borderVisible ? ` data-vsm-border='true'` : ''}`;
     }
     function iconBadge(icon, nodeId) {
       const paths = ICONS[icon];
@@ -3015,13 +3627,13 @@
       const stroke = normalizePickerColor(style?.stroke, luminance > 0.55 ? '#0f172a' : '#ffffff');
       return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='56' height='56' fill='${fill}' stroke='${stroke}' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>${paths}</svg>`;
     }
-    function iconTitleLabel(icon, nodeId, title, shape, doubleBorder) {
-      const metadata = nodeLabelMetadata(shape, doubleBorder);
+    function iconTitleLabel(icon, nodeId, title, shape, doubleBorder, borderVisible) {
+      const metadata = nodeLabelMetadata(shape, doubleBorder, borderVisible);
       return `<span${metadata} style='display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;max-width:160px;white-space:normal;overflow-wrap:anywhere'><span data-icon='${icon}' style='display:block;line-height:0'>${iconBadge(icon, nodeId)}</span><span style='display:block;max-width:100%;line-height:1.2'>${title}</span></span>`;
     }
     function nodeTitleLabel(m, nodeId, title) {
-      if (m.icon && ICONS[m.icon]) return iconTitleLabel(m.icon, nodeId, title, m.shape, m.doubleBorder);
-      const metadata = nodeLabelMetadata(m.shape, m.doubleBorder);
+      if (m.icon && ICONS[m.icon]) return iconTitleLabel(m.icon, nodeId, title, m.shape, m.doubleBorder, m.borderVisible);
+      const metadata = nodeLabelMetadata(m.shape, m.doubleBorder, m.borderVisible);
       return metadata ? `<span${metadata}>${title}</span>` : title;
     }
     const stripVS = s => s.replace(/\uFE0F/g, '');
@@ -3107,6 +3719,19 @@
         hit.setAttribute('class', 'edge-hit');
         hit.dataset.msgIndex = i;
         el.parentNode.insertBefore(hit, el.nextSibling);
+      });
+    }
+
+    function emphasizeArrowheads(svg) {
+      svg.querySelectorAll('marker').forEach(marker => {
+        const width = Number(marker.getAttribute('markerWidth')) || 6;
+        const height = Number(marker.getAttribute('markerHeight')) || 6;
+        marker.setAttribute('markerWidth', String(width * 1.35));
+        marker.setAttribute('markerHeight', String(height * 1.35));
+        marker.querySelectorAll('path, polygon').forEach(shape => {
+          const strokeWidth = Number(shape.getAttribute('stroke-width')) || 1;
+          shape.setAttribute('stroke-width', String(strokeWidth * 1.15));
+        });
       });
     }
 
@@ -3243,6 +3868,9 @@
       refreshEdgeInspectorState();
       switchInspectorTab('edge');
       showInspectorDrawer();
+      document.getElementById('inspectorEdgePortHint').classList.toggle('hidden', activeEdge.kind !== 'flow');
+      document.getElementById('resetEdgePortsBtn').classList.toggle('hidden', activeEdge.kind !== 'flow');
+      renderEdgePortHandles();
       return true;
     }
 
@@ -3250,7 +3878,8 @@
       const raw = (label || '').replace(/<br\s*\/?>\s*<span[^>]*text-\[10px\][^>]*>[\s\S]*?<\/span>\s*$/i, '');
       const shape = (raw.match(/\bdata-vsm-shape=['"]([\w-]+)['"]/) || [])[1];
       const doubleBorder = /data-vsm-double=['"]true['"]/.test(raw);
-      const metadata = { shape, doubleBorder };
+      const borderVisible = /data-vsm-border=['"]true['"]/.test(raw);
+      const metadata = { shape, doubleBorder, borderVisible };
       // Icon above title: <span ...>EMOJI</span><br/>Title. Legacy form: "EMOJI Title".
       // Current form: <span class='relative…'><span class='absolute…'>EMOJI</span>Title</span>.
       const primitive = raw.match(/^\s*<span[^>]*>\s*<span([^>]*)>([\s\S]*?)<\/span>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/span>\s*$/i);
@@ -3298,7 +3927,7 @@
         if (!ICON_PRIMITIVES.has(parsed.icon)) return original;
         const pill = (label.match(/<br\s*\/?>\s*<span[^>]*text-\[10px\][^>]*>[\s\S]*?<\/span>\s*$/i) || [''])[0];
         const title = parsed.bold ? `<b>${parsed.text}</b>` : parsed.text;
-        return `${id}${opener}"${iconTitleLabel(parsed.icon, id, title, parsed.shape, parsed.doubleBorder)}${pill}"`;
+        return `${id}${opener}"${iconTitleLabel(parsed.icon, id, title, parsed.shape, parsed.doubleBorder, parsed.borderVisible)}${pill}"`;
       });
     }
 
@@ -3344,7 +3973,7 @@
       const def = findNodeDefs(code, nodeId)[0];
       if (!def) return null;
       const parsed = splitIconLabel(def.label);
-      return { shape: parsed.shape || def.shape, doubleBorder: parsed.doubleBorder, icon: parsed.icon, title: parsed.text, bold: parsed.bold, def };
+      return { shape: parsed.shape || def.shape, doubleBorder: parsed.doubleBorder, borderVisible: parsed.borderVisible, icon: parsed.icon, title: parsed.text, bold: parsed.bold, def };
     }
     function getNodeLabel(nodeId) {
       const def = findNodeDefs(mermaidCodeInput.value, nodeId)[0];
@@ -3381,7 +4010,7 @@
       } else if (isFlowchart) {
         const defs = findNodeDefs(code, nodeId);
         const shape = m.shape || (defs[0] ? defs[0].shape : 'rect');
-        const cleanTitleText = (m.title || '').trim() || (defs[0] ? splitIconLabel(defs[0].label).text : '') || nodeId;
+        const cleanTitleText = String(m.title ?? (defs[0] ? splitIconLabel(defs[0].label).text : nodeId)).trim();
         const safeTitle = cleanTitleText.replace(/"/g, '#quot;');
         const formattedTitle = m.bold ? `<b>${safeTitle}</b>` : safeTitle.replace(/<\/?b\s*>/gi, '');
         const fullTitle = nodeTitleLabel(m, nodeId, formattedTitle);
@@ -3616,7 +4245,7 @@
       if (!edge) { refreshEdgeInspectorState('This connection was not found in the Mermaid code.'); return; }
       const next = code.slice(0, edge.start) + buildMermaidConnector(style, arrow, label) + code.slice(edge.end);
       projectState.edges = projectState.edges || {};
-      projectState.edges[edgeKey(edge)] = { source: edge.src, target: edge.tgt, label: label.trim(), style, arrow };
+      projectState.edges[edgeKey(edge)] = { ...projectState.edges[edgeKey(edge)], source: edge.src, target: edge.tgt, label: label.trim(), style, arrow };
       preserveConnectionPositions();
       if (next !== code) {
         mermaidCodeInput.value = projectState.mermaid = next;
@@ -3950,7 +4579,7 @@
         dst.setAttribute('style', css);
       });
       addForeignObjectTextFallback(svg, clone);
-      clone.querySelectorAll('.edge-hit, .symbol-touch-hit, .anchor-socket, .note-sel, .cluster-selection, .multi-selection, .selection-marquee, #resizeOverlay, [id^="gooey"]').forEach(el => el.remove());
+      clone.querySelectorAll('.edge-hit, .edge-port-handle, .note-resize-handle, .symbol-touch-hit, .anchor-socket, .note-sel, .cluster-selection, .multi-selection, .selection-marquee, #resizeOverlay, [id^="gooey"]').forEach(el => el.remove());
       const vp = clone.querySelector('g.svg-pan-zoom_viewport');
       if (vp) vp.removeAttribute('transform'), vp.removeAttribute('style');
       clone.querySelectorAll('.svg-pan-zoom-control').forEach(el => el.remove());
@@ -4077,7 +4706,17 @@
     }
     document.addEventListener('click', (e) => { if (!e.target.closest('#saveMenuWrap')) closeSaveMenu(); });
     document.addEventListener('keydown', (e) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && activeClusterId && !e.target.closest?.('input, textarea, select, [contenteditable="true"]')) {
+      const editing = e.target.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
+      const command = e.ctrlKey || e.metaKey;
+      if (command && !editing && e.key.toLowerCase() === 'z') {
+        e.preventDefault(); e.shiftKey ? redo() : undo(); return;
+      }
+      if (command && !editing && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+      if (command && !editing && e.key.toLowerCase() === 'c' && copySelectedNodes()) { e.preventDefault(); return; }
+      if (command && !editing && e.key.toLowerCase() === 'v' && copiedNodeEntries.length) { e.preventDefault(); pasteCopiedNodes(); return; }
+      if (!editing && !command && !e.altKey && e.key.toLowerCase() === 'f') { e.preventDefault(); resetZoom(); return; }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !editing && !command && !e.altKey &&
+          (activeClusterId || activeNoteId || activeEdge || activeNodeId || multiSelection.size)) {
         e.preventDefault(); deleteSelected(); return;
       }
       if (e.key !== 'Escape') return;
