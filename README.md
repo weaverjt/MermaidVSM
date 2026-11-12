@@ -4,7 +4,7 @@
 
 Mermaid Studio is an interactive, single-file HTML / ES6 / Tailwind CSS workspace for Value Stream Mapping and process diagrams. It renders Mermaid.js diagrams on a full-screen canvas with floating HUD panels for editing, inspecting and measuring a process. Everything runs in the browser, with no build step, no login and no backend. Process data never leaves your machine.
 
-**Live URL:** <https://ilcjt.github.io/MermaidVSM/src/mermaid_studio.html>
+**Live URL:** <https://weaverjt.github.io/MermaidVSM/src/mermaid_studio.html>
 
 ## Features
 
@@ -14,8 +14,10 @@ Mermaid Studio is an interactive, single-file HTML / ES6 / Tailwind CSS workspac
 - **Inspector selection:** select a node, connector, note or subgraph on the canvas to open its inspector. Other inspector tabs are disabled until an item of that type is selected.
 - **Subgraph inspector:** activate the Cluster Wand to select a flowchart container and edit its title, fill, opacity and border, or make its background transparent. Drag the container to move its nested nodes, subgraphs and attached notes together; connected lines update as it moves. Turn the wand off or close the inspector to return to pointer mode. Ungroup preserves its contents; deleting the container and contents requires confirmation. Styles are stored in Mermaid code and project files; container positions are stored in project files.
 - **Standalone Lean shapes:** VSM symbols, including safety stock, FIFO lane, data box, dedicated/shared process, workcell, supplier, customer, milk run, supermarket and inspection, appear as resizable standalone vectors with titles underneath.
+- **Symbol styling:** select a standalone symbol to change its fill, line and title colors. Use **Show symbol border** in the Node inspector to show or hide its transparent surrounding outline; the setting and colors persist in project files and image exports.
 - **Basic shapes:** The Object Library and Node Shape inspector include rectangles, circles, diamonds, cylinders and parallelograms.
 - **Multiple selection and grouping:** Shift-click flowchart nodes, or drag an empty canvas area with Shift held. The Select Area button also enables area selection without a keyboard; Escape clears the selection. Select at least two nodes and choose **Group into Subgraph** to create a top-level subgraph, including nodes from different parents. Nodes retain their positions, notes and connections; the new container automatically fits its contents. Original empty parent wrappers remain in the code, although Mermaid may not display them. Mermaid code that cannot be safely regrouped is left unchanged.
+- **Cluster-aware connections:** the Connect Wand links objects within the same subgraph directly; connections crossing a boundary use the corresponding subgraph endpoint in Mermaid code. The `.vsm` project remembers the chosen objects so connections follow them when regrouped or ungrouped. Existing manually authored connections are not converted. Ungrouping a container with manually authored container connections requires editing those connections first.
 - **VSM connectors:** the Edge Inspector offers zigzag electronic information flow, striped push flow, and double circle/cross arrowheads. The custom visual styles persist in project files and `?state=` links; Mermaid text exports retain their standard dotted or thick connectors rather than the custom appearance.
 - **Bottom metric sub-pills:** Owner 👤, Cycle Time ⏱️, Changeover 🔄 and WIP 📦 render under the node title.
 - **VSM summary ladder:** VA time, lead time, total WIP, friction points and efficiency update live.
@@ -54,7 +56,7 @@ Append `?state=` followed by the Base64 (or Base64url) encoding of a UTF-8 `.vsm
 
 ```powershell
 $b = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Get-Content project.vsm.json -Raw)))
-"https://ilcjt.github.io/MermaidVSM/src/mermaid_studio.html?state=$b"
+"https://weaverjt.github.io/MermaidVSM/src/mermaid_studio.html?state=$b"
 ```
 
 Browsers and servers limit URL length, so this suits small to medium projects. Use the Open button for large files.

@@ -31,7 +31,7 @@ def encode_state(state: Union[dict, str]) -> str:
 class Tools:
     class Valves(BaseModel):
         studio_url: str = Field(
-            default="https://ilcjt.github.io/MermaidVSM/src/mermaid_studio.html",
+            default="https://weaverjt.github.io/MermaidVSM/src/mermaid_studio.html",
             description="Where Mermaid Studio is hosted (use the bundled build for internal hosting).",
         )
         iframe_height: int = Field(default=640, description="Iframe height in pixels.")

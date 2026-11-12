@@ -2196,6 +2196,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     @keyframes connectPulse { 0%, 100% { stroke-opacity: 1; stroke-width: 3px; } 50% { stroke-opacity: 0.35; stroke-width: 5px; } }
     #mermaidRender .connect-source rect, #mermaidRender .connect-source path, #mermaidRender .connect-source polygon,
     #mermaidRender .connect-source circle, #mermaidRender .connect-source ellipse { stroke: #22c55e !important; animation: connectPulse 1s ease-in-out infinite; }
+    #mermaidRender .connect-source [data-icon] svg { --vsm-symbol-stroke: #22c55e !important; }
     #mermaidRender.connect-armed .node { cursor: crosshair !important; }
     #mermaidRender .actor, #mermaidRender .actor-man, #mermaidRender .messageText { cursor: pointer; pointer-events: all; }
     #mermaidRender g.cluster, #mermaidRender g.cluster > rect, #mermaidRender g.cluster > .cluster-label, #mermaidRender g.cluster > .cluster-label * { pointer-events: none !important; }
@@ -2483,10 +2484,10 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         <div id="clusterInspectorPanel" class="hidden inspector-body overflow-y-auto flex-1 text-xs">
           <div><label for="inspectorClusterId" class="block text-slate-400 mb-1">Subgraph ID</label><input id="inspectorClusterId" readonly class="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5"></div>
           <div><label for="inspectorClusterTitle" class="block text-slate-400 mb-1">Subgraph Title</label><input id="inspectorClusterTitle" oninput="updateClusterTitle()" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5"></div>
-          <div><label for="inspectorClusterFill" class="block text-slate-400 mb-1">Fill Color</label><input type="color" id="inspectorClusterFill" onchange="recordRecentColor(this.value); updateClusterStyle()" class="w-full h-9"></div>
+          <div><label for="inspectorClusterFill" class="block text-slate-400 mb-1">Fill Color</label><input type="color" id="inspectorClusterFill" oninput="updateClusterStyle()" onchange="recordRecentColor(this.value)" class="w-full h-9"></div>
           <div><label class="block text-[11px] font-semibold text-slate-400 mb-1">Recent Colors</label><div id="clusterColorHistoryPalette" class="color-history-palette flex flex-wrap gap-1.5" aria-label="Recently used colors"></div></div>
           <div><label for="inspectorClusterOpacity" class="block text-slate-400 mb-1">Fill Opacity</label><input type="range" id="inspectorClusterOpacity" min="0" max="1" step="0.05" oninput="updateClusterStyle()" class="w-full"></div>
-          <div><label for="inspectorClusterStroke" class="block text-slate-400 mb-1">Border Color</label><input type="color" id="inspectorClusterStroke" onchange="recordRecentColor(this.value); updateClusterStyle()" class="w-full h-9"></div>
+          <div><label for="inspectorClusterStroke" class="block text-slate-400 mb-1">Border Color</label><input type="color" id="inspectorClusterStroke" oninput="updateClusterStyle()" onchange="recordRecentColor(this.value)" class="w-full h-9"></div>
           <div><label for="inspectorClusterBorder" class="block text-slate-400 mb-1">Border Style</label><select id="inspectorClusterBorder" onchange="updateClusterStyle()" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="hidden">Hidden</option></select></div>
           <button id="inspectorClusterTransparent" type="button" aria-pressed="false" onclick="toggleClusterTransparent()" class="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded">Hide Background / Transparent</button>
           <button onclick="deleteSelected()" class="w-full px-2.5 py-1.5 bg-rose-950/60 border border-rose-800/60 rounded">Ungroup (Keep Contents)</button>
@@ -2564,15 +2565,15 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Fill Color</label>
+              <label for="inspectorFillColor" class="block text-[11px] font-semibold text-slate-400 mb-1">Fill Color</label>
               <input type="color" id="inspectorFillColor" oninput="updateActiveNodeColors()" onchange="recordRecentColor(this.value)" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
             </div>
             <div>
-              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Border Color</label>
+              <label for="inspectorStrokeColor" class="block text-[11px] font-semibold text-slate-400 mb-1">Border / Symbol Line Color</label>
               <input type="color" id="inspectorStrokeColor" oninput="updateActiveNodeColors()" onchange="recordRecentColor(this.value)" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
             </div>
             <div class="col-span-2">
-              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Title / Font Color</label>
+              <label for="inspectorTextColor" class="block text-[11px] font-semibold text-slate-400 mb-1">Title / Font Color</label>
               <input type="color" id="inspectorTextColor" oninput="updateActiveNodeColors()" onchange="recordRecentColor(this.value)" class="w-full h-9 bg-slate-800 border border-slate-700 rounded p-1">
             </div>
           </div>
@@ -3447,12 +3448,25 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       Object.values(nodeIndex).forEach(n => {
         const id = n.el.dataset.nodeKey;
         const parsed = parseNodeDefinition(mermaidCodeInput.value, id);
-        const icon = n.foreignObject?.querySelector('[data-icon]')?.dataset.icon;
+        const iconContainer = n.foreignObject?.querySelector('[data-icon]');
+        const icon = iconContainer?.dataset.icon;
         if (!ICON_PRIMITIVES.has(icon)) return;
         const style = projectState.styles?.[id];
+        const svg = iconContainer.querySelector('svg');
+        if (svg) {
+          const fill = style?.fill || svg.getAttribute('fill') || '#1f2020';
+          const stroke = style?.stroke || svg.getAttribute('stroke') || '#ffffff';
+          svg.style.setProperty('--vsm-symbol-stroke', stroke);
+          svg.style.setProperty('fill', fill, 'important');
+          svg.style.setProperty('stroke', 'var(--vsm-symbol-stroke)', 'important');
+          svg.querySelectorAll('path, rect, circle, ellipse, polygon, polyline, line').forEach(element => {
+            element.style.setProperty('fill', element.getAttribute('fill') === 'none' ? 'none' : fill, 'important');
+            element.style.setProperty('stroke', element.getAttribute('stroke') === 'none' ? 'none' : 'var(--vsm-symbol-stroke)', 'important');
+          });
+        }
         n.shapeElements.forEach(({ element }, index) => {
           const visible = !!parsed?.borderVisible;
-          element.style.setProperty('fill', visible && index === 0 ? style?.fill || '#1e293b' : 'none', 'important');
+          element.style.setProperty('fill', 'none', 'important');
           element.style.setProperty('stroke', visible && index === 0 ? style?.stroke || '#475569' : 'none', 'important');
           element.style.setProperty('stroke-width', visible && index === 0 ? '2px' : '0', 'important');
           element.style.setProperty('pointer-events', 'none', 'important');
@@ -3465,15 +3479,18 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         const n = nodeIndex[id];
         if (!n) return;
         const isIcon = ICON_PRIMITIVES.has(parseNodeDefinition(mermaidCodeInput.value, id)?.icon);
-        const borderVisible = !!parseNodeDefinition(mermaidCodeInput.value, id)?.borderVisible;
-        if (!isIcon || borderVisible) {
+        if (!isIcon) {
           n.shapeElements.forEach(({ element }) => {
             if (style.fill) element.style.setProperty('fill', element.hasAttribute('data-vsm-double-outline') ? 'none' : style.fill, 'important');
             if (style.stroke) element.style.setProperty('stroke', style.stroke, 'important');
           });
         }
         const label = n.foreignObject?.querySelector('.nodeLabel');
-        if (label && style.textColor) label.style.setProperty('color', style.textColor, 'important');
+        if (label && style.textColor) {
+          [label, ...label.querySelectorAll('span')].forEach(element => {
+            element.style.setProperty('color', style.textColor, 'important');
+          });
+        }
       });
     }
 
@@ -3599,7 +3616,16 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           outline.setAttribute('ry', String(Math.max(0, Number(base.element.getAttribute('ry')) - inset)));
         } else {
           const box = base.element.getBBox();
-          outline.setAttribute('transform', `translate(${box.x + box.width / 2} ${box.y + box.height / 2}) scale(0.9) translate(${-box.x - box.width / 2} ${-box.y - box.height / 2})${base.transform ? ` ${base.transform}` : ''}`);
+          const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+          if (parsed.shape === 'cylinder' && tag === 'path') {
+            const ry = Math.max(0, Math.min(box.height / 2, base.element.getPointAtLength(0).y - box.y));
+            const right = box.x + box.width, bottom = box.y + box.height;
+            // End the inner sides at the front rim instead of crossing the cylinder's top ellipse.
+            const rimY = box.y + ry * (1 + Math.sqrt(1 - 0.9 ** 2));
+            const startY = cy + (rimY - cy) / 0.9;
+            outline.setAttribute('d', `M ${box.x},${startY} L ${box.x},${bottom - ry} A ${box.width / 2},${ry} 0 0 0 ${right},${bottom - ry} L ${right},${startY}`);
+          }
+          outline.setAttribute('transform', `${base.transform ? `${base.transform} ` : ''}translate(${cx} ${cy}) scale(0.9) translate(${-cx} ${-cy})`);
         }
         n.el.insertBefore(outline, base.element.nextSibling);
         n.shapeElements.push({ element: outline, transform: outline.getAttribute('transform') || '' });
@@ -3656,7 +3682,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       const w = Math.max(60, Number(width) || n.baseWidth);
       const h = Math.max(40, Number(height) || n.baseHeight);
       const sx = w / Math.max(1, n.baseBox.width), sy = h / Math.max(1, n.baseBox.height);
-      const baseCenterX = n.baseBox.x + n.baseWidth / 2, baseCenterY = n.baseBox.y + n.baseHeight / 2;
+      const baseCenterX = n.baseBox.x + n.baseBox.width / 2, baseCenterY = n.baseBox.y + n.baseBox.height / 2;
       n.shapeElements.forEach(({ element, transform }) => {
         element.setAttribute('transform', `scale(${sx} ${sy}) translate(${-baseCenterX} ${-baseCenterY})${transform ? ` ${transform}` : ''}`);
       });
@@ -3774,7 +3800,16 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
 
     function nodeBounds(id, parent) {
       const n = nodeIndex[id];
-      if (!n) return null;
+      if (!n) {
+        const rect = [...mermaidRender.querySelectorAll('g.cluster')].find(cluster => cluster.id === id)?.querySelector(':scope > rect');
+        const source = rect?.getScreenCTM(), target = parent.getScreenCTM();
+        if (!rect || !source || !target) return null;
+        const box = rect.getBBox(), matrix = target.inverse().multiply(source);
+        const p = new DOMPoint(box.x, box.y).matrixTransform(matrix);
+        const q = new DOMPoint(box.x + box.width, box.y + box.height).matrixTransform(matrix);
+        const left = Math.min(p.x, q.x), right = Math.max(p.x, q.x), top = Math.min(p.y, q.y), bottom = Math.max(p.y, q.y);
+        return { cx: (left + right) / 2, cy: (top + bottom) / 2, hw: (right - left) / 2, hh: (bottom - top) / 2, left, right, top, bottom };
+      }
       const parentMatrix = parent.getScreenCTM(), nodeMatrix = n.el.getScreenCTM();
       if (!parentMatrix || !nodeMatrix) return null;
       let m = parentMatrix.inverse().multiply(nodeMatrix);
@@ -4102,6 +4137,72 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       return { nodes: [...nodes], clusters: [...clusters] };
     }
 
+    function hasManagedClusterConnection(ids) {
+      const selected = new Set(ids);
+      return Object.values(projectState.edges || {}).some(edge =>
+        (selected.has(edge.sourceChild) && edge.source !== edge.sourceChild) ||
+        (selected.has(edge.targetChild) && edge.target !== edge.targetChild));
+    }
+
+    function connectionEndpoints(source, target, groups) {
+      const parents = new Map();
+      groups.forEach(group => group.nodes.forEach(child => {
+        if (parents.has(child) && parents.get(child) !== group.id) throw new Error(`Ambiguous subgraph membership for ${child}.`);
+        parents.set(child, group.id);
+      }));
+      const ancestors = id => {
+        const result = [], seen = new Set([id]);
+        while (parents.has(id)) {
+          id = parents.get(id);
+          if (seen.has(id)) throw new Error('Circular subgraph membership.');
+          seen.add(id); result.push(id);
+        }
+        return result;
+      };
+      const a = ancestors(source), b = ancestors(target);
+      const shared = new Set(a.filter(id => b.includes(id)));
+      return {
+        src: a.filter(id => !shared.has(id)).pop() || source,
+        tgt: b.filter(id => !shared.has(id)).pop() || target
+      };
+    }
+
+    function rebindManagedConnections(code, groups) {
+      const original = parseMermaidEdges(code), changes = [], oldState = projectState.edges || {};
+      original.forEach(edge => {
+        const saved = oldState[edgeKey(edge)];
+        if (!saved?.sourceChild || !saved?.targetChild) return;
+        if (saved.source !== edge.src || saved.target !== edge.tgt) throw new Error('A managed connection was edited outside the editor; restore its endpoints before regrouping.');
+        const endpoints = connectionEndpoints(saved.sourceChild, saved.targetChild, groups);
+        if (endpoints.src === edge.src && endpoints.tgt === edge.tgt) return;
+        const [start, end] = lineBoundsAt(code, edge.start);
+        const line = code.slice(start, end);
+        const match = line.match(/^([ \t]*)(\w+)([ \t]*)([\s\S]*?)([ \t]*)(\w+)([ \t]*;?[ \t]*)(\r?\n)?$/);
+        if (!match || match[2] !== edge.src || match[6] !== edge.tgt ||
+            start + match[1].length + match[2].length + match[3].length !== edge.start ||
+            start + match[1].length + match[2].length + match[3].length + match[4].length !== edge.end) {
+          throw new Error('A managed connection uses unsupported Mermaid syntax; simplify it before regrouping.');
+        }
+        changes.push({ start, end, text: `${match[1]}${endpoints.src}${match[3]}${match[4]}${match[5]}${endpoints.tgt}${match[7]}${match[8] || ''}` });
+      });
+      let next = code;
+      changes.sort((a, b) => b.start - a.start).forEach(change => { next = next.slice(0, change.start) + change.text + next.slice(change.end); });
+      const updated = parseMermaidEdges(next);
+      if (updated.length !== original.length) throw new Error('Could not safely preserve connections while regrouping.');
+      const state = { ...oldState };
+      original.forEach(edge => { delete state[edgeKey(edge)]; });
+      original.forEach((edge, index) => {
+        const saved = oldState[edgeKey(edge)];
+        if (!saved) return;
+        const replacement = updated[index];
+        const item = { ...saved, source: replacement.src, target: replacement.tgt };
+        if (edge.src !== replacement.src) delete item.sourcePort;
+        if (edge.tgt !== replacement.tgt) delete item.targetPort;
+        state[edgeKey(replacement)] = item;
+      });
+      return { code: next, edges: state };
+    }
+
     function fitAutoClusters() {
       for (const id of Object.keys(projectState.autoFitClusters || {})) {
         const cluster = [...mermaidRender.querySelectorAll('g.cluster')].find(el => el.id === id);
@@ -4127,6 +4228,9 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         if (label) label.setAttribute('transform', `translate(${(left + right - (labelBox?.width || 0)) / 2}, ${top + 4})`);
       }
       if (activeClusterId && projectState.autoFitClusters?.[activeClusterId]) highlightCluster();
+      edgeIndex.forEach(edge => {
+        if (projectState.autoFitClusters?.[edge.src] || projectState.autoFitClusters?.[edge.tgt]) routeEdge(edge);
+      });
     }
 
     function applyClusterPositions() {
@@ -4286,7 +4390,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         applyClusterPositions();
         fitAutoClusters();
         drag.nodes.forEach(item => updateNotesForNode(item.id));
-        const moved = new Set(drag.nodes.map(item => item.id));
+        const moved = new Set([...drag.nodes.map(item => item.id), ...drag.clusters.map(item => item.id)]);
         edgeIndex.forEach(edge => { if (moved.has(edge.src) || moved.has(edge.tgt)) routeEdge(edge); });
         return;
       }
@@ -4938,6 +5042,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Multi-node deletion works on flowcharts only', 'amber'); return; }
       const ids = [...multiSelection].filter(id => nodeIndex[id]);
       if (!ids.length) { clearMultiSelection(); return; }
+      if (hasManagedClusterConnection(ids)) { updateStatus('Remove the connected subgraph edges before deleting their selected child nodes', 'amber'); return; }
       preserveConnectionPositions();
       let code = mermaidCodeInput.value;
       ids.forEach(id => {
@@ -4963,6 +5068,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       const code = mermaidCodeInput.value, kind = diagramKind(code);
       if (!activeEdge && !activeNodeId) { updateStatus('Select a node or connection first', 'amber'); return; }
       const nodeId = activeNodeId, edgeRef = activeEdge;
+      if (nodeId && hasManagedClusterConnection([nodeId])) { updateStatus('Remove the connected subgraph edges before deleting this child node', 'amber'); return; }
       const next = edgeRef ? deleteEdgeFromCode(code, kind, edgeRef) : deleteNodeFromCode(code, kind, nodeId);
       if (next === null || next === code) { updateStatus('Nothing to delete for this selection (subgraphs are not deletable)', 'amber'); return; }
       preserveConnectionPositions();
@@ -5201,6 +5307,9 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
     function handleConnectClick(nodeEl) {
       const nodeId = (nodeEl.id || '').replace(/^flowchart-/, '').replace(/-\d+$/, '');
       if (!nodeId) return;
+      if (mermaidCodeInput.value.trim() !== clusterMembershipCode) {
+        updateStatus('Wait for the diagram to finish rendering before connecting nodes', 'amber'); return;
+      }
       if (connectSourceNodeId === null) {
         connectSourceNodeId = nodeId;
         nodeEl.classList.add('connect-source');
@@ -5209,16 +5318,23 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         return;
       }
       const src = connectSourceNodeId;
+      let endpoints;
+      try { endpoints = connectionEndpoints(src, nodeId, clusterMembership); }
+      catch (err) { updateStatus(`Cannot connect nodes: ${err.message}`, 'amber'); return; }
       mermaidRender.querySelectorAll('.connect-source').forEach(n => n.classList.remove('connect-source'));
       connectSourceNodeId = nodeId;
       nodeEl.classList.add('connect-source');
       setConnectButton('Select Target...', true);
-      const next = mermaidCodeInput.value.replace(/\s+$/, '') + `\n    ${src} --> ${nodeId}`;
+      const next = mermaidCodeInput.value.replace(/\s+$/, '') + `\n    ${endpoints.src} --> ${endpoints.tgt}`;
       preserveConnectionPositions();
       mermaidCodeInput.value = projectState.mermaid = next;
       updateLineNumbers(); debouncedRender();
-      const edge = parseMermaidEdges(next).filter(e => e.src === src && e.tgt === nodeId).pop();
-      if (edge) showEdgeInspector(edge);
+      const edge = parseMermaidEdges(next).filter(e => e.src === endpoints.src && e.tgt === endpoints.tgt).pop();
+      if (edge) {
+        projectState.edges = projectState.edges || {};
+        projectState.edges[edgeKey(edge)] = { source: edge.src, target: edge.tgt, sourceChild: src, targetChild: nodeId };
+        showEdgeInspector(edge);
+      }
       updateStatus(`Source ${nodeId} selected: click the next target, or press Esc to stop`, 'emerald');
     }
 
@@ -5361,9 +5477,10 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       const computed = shape ? getComputedStyle(shape) : null;
       const label = nodeIndex[nodeId]?.foreignObject?.querySelector('.nodeLabel');
       const labelComputed = label ? getComputedStyle(label) : null;
+      const icon = nodeIndex[nodeId]?.foreignObject?.querySelector('[data-icon] svg');
       return {
-        fill: normalizePickerColor(stored?.fill || computed?.fill, '#1e293b'),
-        stroke: normalizePickerColor(stored?.stroke || computed?.stroke, '#475569'),
+        fill: normalizePickerColor(stored?.fill || icon?.getAttribute('fill') || computed?.fill, '#1e293b'),
+        stroke: normalizePickerColor(stored?.stroke || icon?.getAttribute('stroke') || computed?.stroke, '#475569'),
         textColor: normalizePickerColor(stored?.textColor || labelComputed?.color, '#cccccc')
       };
     }
@@ -5500,12 +5617,20 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           next = next.slice(0, item.definition.start) + item.id + next.slice(item.definition.end);
         }
         const rewritten = subgraphBlocks(next);
-        rewritten.blocks.filter(block => block.implicit).forEach(block => {
-          rewritten.lines[block.start] = `${block.indent}subgraph ${block.id} ["${encodeSubgraphTitle(block.label)}"]`;
+        const selectedIds = new Set(ids);
+        for (let i = rewritten.lines.length - 1; i >= 0; i--) {
+          const match = rewritten.lines[i].match(/^[ \t]*(\w+)[ \t]*;?[ \t]*$/);
+          if (match && selectedIds.has(match[1]) && rewritten.blocks.some(block => i > block.start && i < block.end)) {
+            rewritten.lines.splice(i, 1);
+          }
+        }
+        const regrouped = subgraphBlocks(rewritten.lines.join('\n'));
+        regrouped.blocks.filter(block => block.implicit).forEach(block => {
+          regrouped.lines[block.start] = `${block.indent}subgraph ${block.id} ["${encodeSubgraphTitle(block.label)}"]`;
         });
         const escapedTitle = encodeSubgraphTitle(cleanTitle);
-        rewritten.lines.splice(header + 1, 0, `    subgraph ${groupId} ["${escapedTitle}"]`, ...replacements.map(item => `        ${item.text}`), '    end');
-        next = rewritten.lines.join('\n');
+        regrouped.lines.splice(header + 1, 0, `    subgraph ${groupId} ["${escapedTitle}"]`, ...replacements.map(item => `        ${item.text}`), '    end');
+        next = regrouped.lines.join('\n');
         const result = flowDiagramSnapshot((await mermaid.mermaidAPI.getDiagramFromText(next)).db);
         if (JSON.stringify(original.vertices) !== JSON.stringify(result.vertices) || JSON.stringify(original.edges) !== JSON.stringify(result.edges)) {
           throw new Error('The diagram uses node syntax that cannot be regrouped safely; edit the Mermaid code manually.');
@@ -5517,6 +5642,8 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           const expected = group.nodes.filter(id => !selected.has(id)).sort();
           if (!actual || JSON.stringify([...actual.nodes].sort()) !== JSON.stringify(expected)) throw new Error('Grouping would change another subgraph unexpectedly.');
         }
+        const rebound = rebindManagedConnections(next, result.groups);
+        next = rebound.code;
         const preview = await mermaid.render(`vsm-group-check-${Date.now()}`, standaloneRenderCode(next));
         const previewDoc = new DOMParser().parseFromString(preview.svg, 'image/svg+xml');
         if (![...previewDoc.querySelectorAll('g.cluster')].some(element => element.id === groupId)) throw new Error('Mermaid could not render the new subgraph.');
@@ -5530,7 +5657,9 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
         }
         projectState.autoFitClusters = projectState.autoFitClusters || {};
         projectState.autoFitClusters[groupId] = true;
+        projectState.edges = rebound.edges;
         mermaidCodeInput.value = projectState.mermaid = next;
+        if (activeEdge) closeInspector();
         clearMultiSelection(); setAreaSelect(false); updateLineNumbers();
         await renderDiagram();
         if (clusterMembershipCode !== next.trim() || !document.getElementById('errorBanner').classList.contains('hidden')) {
@@ -5589,6 +5718,7 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       document.getElementById('inspectorClusterOpacity').value = style.opacity;
       document.getElementById('inspectorClusterBorder').value = style.border;
       document.getElementById('inspectorClusterTransparent').setAttribute('aria-pressed', String(style.transparent));
+      activeColorPickerId = 'inspectorClusterFill';
       highlightCluster(); switchInspectorTab('cluster'); showInspectorDrawer();
     }
 
@@ -5621,6 +5751,13 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       };
       projectState.clusterStyles = projectState.clusterStyles || {};
       projectState.clusterStyles[id] = style;
+      const rect = [...mermaidRender.querySelectorAll('g.cluster')].find(cluster => cluster.id === id)?.querySelector(':scope > rect');
+      if (rect) {
+        rect.style.setProperty('fill', style.transparent ? 'none' : style.fill);
+        rect.style.setProperty('fill-opacity', String(style.opacity));
+        rect.style.setProperty('stroke', style.transparent || style.border === 'hidden' ? 'none' : style.stroke);
+        rect.style.setProperty('stroke-dasharray', style.border === 'dashed' ? '5 5' : 'none');
+      }
       const pattern = new RegExp('^([ \\t]*style[ \\t]+' + escapeRegExp(id) + '[ \\t]+)([^\\n]*?)(\\r?)$', 'gm');
       const properties = new Map();
       let code = mermaidCodeInput.value.replace(pattern, (_, prefix, declarations) => {
@@ -5654,8 +5791,9 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
       catch (err) { updateStatus(`Cannot remove subgraph: ${err.message}`, 'amber'); return; }
       const block = parsed.blocks.find(b => b.id === id);
       if (!block) { updateStatus('Subgraph no longer exists in the Mermaid code', 'amber'); return; }
-      if (!contents && parseMermaidEdges(code).some(edge => edge.src === id || edge.tgt === id)) {
-        updateStatus('Ungrouping a subgraph used as a connection endpoint is not supported; edit the connections first', 'amber'); return;
+      if (!contents && parseMermaidEdges(code).some(edge => (edge.src === id || edge.tgt === id) &&
+          (!projectState.edges?.[edgeKey(edge)]?.sourceChild || !projectState.edges?.[edgeKey(edge)]?.targetChild))) {
+        updateStatus('Cannot ungroup a subgraph with manually created container connections; edit those connections first', 'amber'); return;
       }
       if (contents && /^[ \t]*linkStyle[ \t]+\d/m.test(code)) {
         updateStatus('Cannot safely delete contents with indexed link styles; edit the Mermaid code first', 'amber'); return;
@@ -5674,6 +5812,11 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           };
           removedIds = [...new Set(collect(id))];
         } catch (err) { console.error('Cannot determine subgraph contents:', err); updateStatus(`Cannot delete contents: ${err.message}`, 'rose'); return; }
+        if (Object.values(projectState.edges || {}).some(edge =>
+          (removedIds.includes(edge.sourceChild) && !removedIds.includes(edge.source)) ||
+          (removedIds.includes(edge.targetChild) && !removedIds.includes(edge.target)))) {
+          updateStatus('Remove the connected parent-subgraph edges before deleting these contents', 'amber'); return;
+        }
       }
       // Stabilize anonymous IDs before removing blocks so remaining style and connection references keep their meaning.
       parsed.blocks.filter(b => b.implicit && !(b.start >= block.start && b.end <= block.end && contents) && b !== block).forEach(b => {
@@ -5690,6 +5833,29 @@ lucide.createIcons({icons});\``);if(typeof d>"u")throw new Error("`createIcons()
           const remaining = ids.split(',').filter(value => value !== id);
           return remaining.length ? prefix + remaining.join(',') + suffix + newline : '';
         });
+      }
+      if (!contents) {
+        try {
+          const diagram = await mermaid.mermaidAPI.getDiagramFromText(next);
+          const groups = diagram.db.getSubGraphs().map(group => ({ id: group.id, nodes: [...group.nodes] }));
+          const removed = clusterMembership.find(group => group.id === id);
+          if (!removed || code.trim() !== clusterMembershipCode) throw new Error('Wait for the diagram to finish rendering before ungrouping.');
+          for (const original of clusterMembership.filter(group => group.id !== id)) {
+            const actual = groups.find(group => group.id === original.id);
+            const expected = original.nodes.flatMap(child => child === id ? removed.nodes : [child]).sort();
+            if (!actual || JSON.stringify([...actual.nodes].sort()) !== JSON.stringify(expected)) {
+              throw new Error('Ungrouping would change other subgraph membership; remove duplicate node references first.');
+            }
+          }
+          const rebound = rebindManagedConnections(next, groups);
+          await mermaid.parse(rebound.code);
+          if (code !== mermaidCodeInput.value || id !== activeClusterId) { updateStatus('Diagram changed; retry ungrouping', 'amber'); return; }
+          next = rebound.code;
+          projectState.edges = rebound.edges;
+        } catch (err) {
+          console.error('Cannot preserve connections while ungrouping:', err);
+          updateStatus(`Cannot ungroup: ${err.message}`, 'amber'); return;
+        }
       }
       preserveConnectionPositions();
       mermaidCodeInput.value = projectState.mermaid = next;
