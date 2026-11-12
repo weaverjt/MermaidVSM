@@ -5,6 +5,10 @@ description: Generates structured .vsm.json project state files for Mermaid Stud
 
 # VSM Builder Skill
 
+For the full Open WebUI system prompt, syntax crosswalk, and metric limitations,
+see [OPEN_WEBUI_SYSTEM_PROMPT.md](OPEN_WEBUI_SYSTEM_PROMPT.md). Missing
+measurements should remain unknown, not be invented or treated as measured zero.
+
 When asked to draft or map a Value Stream Map, process flow, or RMA disposition sequence, generate a JSON object wrapped in a .vsm.json file block.
 
 ## Required JSON Schema
