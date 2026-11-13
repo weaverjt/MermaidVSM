@@ -59,9 +59,11 @@ and unknowns explicitly and proceed with a clearly marked draft.
 - Connect nodes with `P1 --> P2`, `D1 -- Yes --> P2`, or
   `D1 -- No --> P3`. Define subgraphs with
   `subgraph DEPT["Department"]` on its own line, then node definitions, then
-  `end`. Explicit node-to-node edges across subgraphs are valid. Connections
-  made later with Studio's Connect Wand may bind to cluster boundaries; do not
-  rewrite existing user-supplied edge endpoints without permission.
+  `end`. For new cross-department flows, prefer cluster IDs as endpoints when
+  the flow is between departments. Mermaid also permits direct node-to-node
+  edges across subgraphs: Studio visually routes those to cluster boundaries
+  but does not rewrite their source, so other Mermaid renderers may show them
+  differently. Do not silently rewrite user-supplied edge endpoints.
 - For a known friction point, define `classDef friction fill:#451a03,stroke:#f97316,stroke-width:2px,color:#ffedd5;`
   and apply `class P2 friction;`. The `friction` metric drives the Studio
   summary; the Mermaid class controls diagram styling. Set both when appropriate.

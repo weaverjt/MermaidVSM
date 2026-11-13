@@ -67,6 +67,7 @@
     #mermaidRender .actor, #mermaidRender .actor-man, #mermaidRender .messageText { cursor: pointer; pointer-events: all; }
     #mermaidRender g.cluster, #mermaidRender g.cluster > rect, #mermaidRender g.cluster > .cluster-label, #mermaidRender g.cluster > .cluster-label * { pointer-events: none !important; }
     #mermaidRender.cluster-edit-mode g.cluster, #mermaidRender.cluster-edit-mode g.cluster > rect, #mermaidRender.cluster-edit-mode g.cluster > .cluster-label, #mermaidRender.cluster-edit-mode g.cluster > .cluster-label * { pointer-events: all !important; cursor: crosshair; }
+    #mermaidRender g.cluster > .vsm-cluster-boundary, #mermaidRender g.cluster > .vsm-cluster-port { pointer-events: all !important; cursor: pointer; }
     #mermaidRender.cluster-edit-mode { cursor: crosshair; }
     #mermaidRender .cluster-selection { fill: none; stroke: #60a5fa; stroke-width: 3px; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; pointer-events: none; }
     #mermaidRender .multi-selection, #mermaidRender .selection-marquee { fill: none; stroke: #60a5fa; stroke-width: 2px; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }
@@ -179,6 +180,7 @@
       </div>
       <button type="button" id="navAddBtn" onclick="toggleObjectLibrary()" class="mobile-only px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-200 text-xs font-medium items-center"><i data-lucide="plus-square" class="w-4 h-4 text-emerald-400"></i><span>Add</span></button>
       <button type="button" id="navCodeBtn" onclick="toggleEditorPanel()" class="mobile-only px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-200 text-xs font-medium items-center"><i data-lucide="code-2" class="w-4 h-4 text-sky-400"></i><span>Code</span></button>
+      <button type="button" id="fullscreenBtn" onclick="toggleFullscreen()" title="Enter fullscreen" aria-label="Enter fullscreen" aria-pressed="false" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-slate-200 text-xs font-medium">Fullscreen</button>
       <button type="button" onclick="openProjectFile()" title="Open Project" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-slate-200 text-xs font-medium flex items-center space-x-1 cursor-pointer transition">
         <i data-lucide="folder-open" class="w-3.5 h-3.5 text-amber-400"></i>
         <span>Open Project</span>
@@ -263,7 +265,7 @@
         <div id="wandControls" class="grid grid-cols-2 gap-1">
           <button id="btnConnectNodes" onclick="toggleConnectMode()" aria-pressed="false" title="Chain connections; press Esc or click the canvas background to stop" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">🪄 Connect Wand</button>
           <button id="btnDisconnectNodes" onclick="toggleDisconnectMode()" aria-pressed="false" title="Remove connections; press Esc or click the canvas background to stop" class="text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">✂️ Disconnect Wand</button>
-          <button id="btnClusterWand" onclick="toggleClusterEditMode()" aria-pressed="false" title="Select and edit subgraph containers" class="col-span-2 text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">✨ Cluster Wand</button>
+          <button id="btnClusterWand" onclick="toggleClusterEditMode()" aria-pressed="false" title="Select and edit subgraph containers" class="col-span-2 text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">✨ Cluster Editor Wand</button>
           <button id="btnAreaSelect" onclick="toggleAreaSelect()" aria-pressed="false" title="Drag an empty area to select nodes; drag again to replace the selection" class="col-span-2 text-left px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-xs text-slate-200 transition">Select Area</button>
         </div>
         <details open class="border-b border-slate-800 pb-1">
@@ -350,12 +352,25 @@
         <div id="clusterInspectorPanel" class="hidden inspector-body overflow-y-auto flex-1 text-xs">
           <div><label for="inspectorClusterId" class="block text-slate-400 mb-1">Subgraph ID</label><input id="inspectorClusterId" readonly class="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5"></div>
           <div><label for="inspectorClusterTitle" class="block text-slate-400 mb-1">Subgraph Title</label><input id="inspectorClusterTitle" oninput="updateClusterTitle()" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label for="inspectorClusterTitleSize" class="block text-slate-400 mb-1">Title Size</label><input type="number" id="inspectorClusterTitleSize" min="8" max="72" step="1" value="16" oninput="updateClusterTitleStyle()" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5"></div>
+            <div><label for="inspectorClusterTitleColor" class="block text-slate-400 mb-1">Title Color</label><input type="color" id="inspectorClusterTitleColor" oninput="updateClusterTitleStyle()" onchange="recordRecentColor(this.value)" class="w-full h-9"></div>
+          </div>
+          <div class="flex flex-wrap gap-3">
+            <label><input type="checkbox" id="inspectorClusterTitleBold" onchange="updateClusterTitleStyle()"> Bold</label>
+            <label><input type="checkbox" id="inspectorClusterTitleItalic" onchange="updateClusterTitleStyle()"> Italic</label>
+            <label><input type="checkbox" id="inspectorClusterTitleUnderline" onchange="updateClusterTitleStyle()"> Underline</label>
+          </div>
+          <div class="grid grid-cols-2 gap-2 items-center">
+            <label><input type="checkbox" id="inspectorClusterTitleBackground" onchange="updateClusterTitleStyle()"> Title background</label>
+            <div><label for="inspectorClusterTitleBackgroundColor" class="block text-slate-400 mb-1">Background Color</label><input type="color" id="inspectorClusterTitleBackgroundColor" oninput="updateClusterTitleStyle()" onchange="recordRecentColor(this.value)" class="w-full h-9"></div>
+          </div>
+          <div><label for="inspectorClusterShape" class="block text-slate-400 mb-1">Boundary Shape</label><select id="inspectorClusterShape" onchange="updateClusterStyle()" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5"><option value="rectangle">Rectangle</option><option value="rounded">Rounded rectangle</option><option value="ellipse">Ellipse</option><option value="diamond">Diamond</option></select></div>
           <div><label for="inspectorClusterFill" class="block text-slate-400 mb-1">Fill Color</label><input type="color" id="inspectorClusterFill" oninput="updateClusterStyle()" onchange="recordRecentColor(this.value)" class="w-full h-9"></div>
           <div><label class="block text-[11px] font-semibold text-slate-400 mb-1">Recent Colors</label><div id="clusterColorHistoryPalette" class="color-history-palette flex flex-wrap gap-1.5" aria-label="Recently used colors"></div></div>
           <div><label for="inspectorClusterOpacity" class="block text-slate-400 mb-1">Fill Opacity</label><input type="range" id="inspectorClusterOpacity" min="0" max="1" step="0.05" oninput="updateClusterStyle()" class="w-full"></div>
           <div><label for="inspectorClusterStroke" class="block text-slate-400 mb-1">Border Color</label><input type="color" id="inspectorClusterStroke" oninput="updateClusterStyle()" onchange="recordRecentColor(this.value)" class="w-full h-9"></div>
           <div><label for="inspectorClusterBorder" class="block text-slate-400 mb-1">Border Style</label><select id="inspectorClusterBorder" onchange="updateClusterStyle()" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="hidden">Hidden</option></select></div>
-          <button id="inspectorClusterTransparent" type="button" aria-pressed="false" onclick="toggleClusterTransparent()" class="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded">Hide Background / Transparent</button>
           <button onclick="deleteSelected()" class="w-full px-2.5 py-1.5 bg-rose-950/60 border border-rose-800/60 rounded">Ungroup (Keep Contents)</button>
           <button onclick="deleteCluster(true)" class="w-full px-2.5 py-1.5 bg-rose-950/60 border border-rose-800/60 rounded">Delete Subgraph and Contents</button>
         </div>
@@ -900,6 +915,15 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      document.addEventListener('fullscreenchange', () => {
+        const active = !!document.fullscreenElement;
+        const button = document.getElementById('fullscreenBtn');
+        button.textContent = active ? 'Exit fullscreen' : 'Fullscreen';
+        button.title = active ? 'Exit fullscreen' : 'Enter fullscreen';
+        button.setAttribute('aria-label', button.title);
+        button.setAttribute('aria-pressed', String(active));
+        if (panZoomInstance) panZoomInstance.resize();
+      });
       if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', flowchart: { htmlLabels: true, curve: 'basis' } });
       else document.getElementById('depWarning').hidden = false;
       if (!restoreWorkspace()) {
@@ -956,7 +980,7 @@
         suppressWandClick = false;
         if (e.pointerType !== 'touch') return;
         if (!e.isPrimary) { wandTouch = null; return; }
-        const node = e.target.closest?.('.node, g.nodes > g');
+        const node = e.target.closest?.('.node, g.nodes > g, g.cluster');
         const edge = e.target.closest?.('.edgePath, .edgeLabel, g.edgePaths path, g.edgeLabels');
         const selectable = e.target.closest?.('g.process-note, .actor, g.actor, .messageLine0, .messageLine1, .messageText, g.cluster');
         if (node || edge || selectable) wandTouch = { id: e.pointerId, x: e.clientX, y: e.clientY, node, edge, target: e.target };
@@ -989,7 +1013,7 @@
           return;
         }
         if (connectArmed) {
-          const nodeEl = e.target.closest('.node, g.nodes > g');
+          const nodeEl = e.target.closest('.node, g.nodes > g, g.cluster');
           if (nodeEl) handleConnectClick(nodeEl);
           return;
         }
@@ -1003,6 +1027,10 @@
           if (actorId) { openInspector(actorId); return; }
         }
         const cluster = e.target.closest('g.cluster');
+        if (cluster && e.detail === 3 && !e.target.closest('.node, .role, .stateGroup') && diagramKind(mermaidCodeInput.value) === 'flow') {
+          if (!clusterEditMode) toggleClusterEditMode();
+          openClusterInspector(cluster.id); return;
+        }
         if (cluster && clusterEditMode && !e.target.closest('.node, .role, .stateGroup') && diagramKind(mermaidCodeInput.value) === 'flow') { openClusterInspector(cluster.id); return; }
         if (cluster && !clusterEditMode) return;
         const targetEl = e.target.closest('.node, g.nodes > g, .role, .stateGroup');
@@ -1049,6 +1077,20 @@
       const b64 = encoded.trim().replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/');
       const bytes = Uint8Array.from(atob(b64.padEnd(Math.ceil(b64.length / 4) * 4, '=')), c => c.charCodeAt(0));
       return JSON.parse(new TextDecoder().decode(bytes));
+    }
+
+    async function toggleFullscreen() {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else {
+          if (!document.fullscreenEnabled) throw new Error('Fullscreen is blocked by the browser or embedding host.');
+          await document.documentElement.requestFullscreen();
+        }
+      } catch (err) {
+        console.error('Cannot change fullscreen mode:', err);
+        updateStatus('Fullscreen unavailable: check browser and embedding permissions', 'amber');
+        alert('Fullscreen is unavailable. The browser or embedding host may block fullscreen permission.');
+      }
     }
 
     function hydrateFromState(parsed, sourceUrl) {
@@ -1158,7 +1200,7 @@
           pruneOrphanMetrics();
           const wandSource = connectArmed ? connectSourceNodeId : disconnectSourceNodeId;
           if (wandSource) {
-            const src = [...svgElement.querySelectorAll('g.node')].find(n => n.id.replace(/^flowchart-/, '').replace(/-\d+$/, '') === wandSource);
+            const src = [...svgElement.querySelectorAll('g.node, g.cluster')].find(n => n.matches('g.cluster') ? n.id === wandSource : n.id.replace(/^flowchart-/, '').replace(/-\d+$/, '') === wandSource);
             if (src) src.classList.add('connect-source'); else { connectSourceNodeId = null; disconnectSourceNodeId = null; }
           }
           applyStoredPositions();
@@ -1193,7 +1235,7 @@
               e.path.style.setProperty('stroke-width', '6px', 'important');
               e.path.style.setProperty('stroke-dasharray', 'none', 'important');
             }
-            if (pendingConnectionPositions || e.visualStyle === 'electronic' || [e.src, e.tgt].some(id => nodeIndex[id]?.foreignObject?.querySelector('[data-icon]') || ['triangle', 'hexagon'].includes(parseNodeDefinition(code, id)?.shape))) routeEdge(e);
+            if (diagram || pendingConnectionPositions || e.visualStyle === 'electronic') routeEdge(e);
           });
           pendingConnectionPositions = null;
           pendingClusterPositions = null;
@@ -1667,7 +1709,8 @@
     function nodeBounds(id, parent) {
       const n = nodeIndex[id];
       if (!n) {
-        const rect = [...mermaidRender.querySelectorAll('g.cluster')].find(cluster => cluster.id === id)?.querySelector(':scope > rect');
+        const cluster = [...mermaidRender.querySelectorAll('g.cluster')].find(item => item.id === id);
+        const rect = cluster?.querySelector(':scope > .vsm-cluster-boundary') || cluster?.querySelector(':scope > rect');
         const source = rect?.getScreenCTM(), target = parent.getScreenCTM();
         if (!rect || !source || !target) return null;
         const box = rect.getBBox(), matrix = target.inverse().multiply(source);
@@ -1726,7 +1769,9 @@
 
     // Redraws one edge as a cubic Bezier between the facing sides of its two nodes.
     function routeEdge(e) {
-      const a = nodeBounds(e.src, e.path.parentNode), b = nodeBounds(e.tgt, e.path.parentNode);
+      let endpoints = { src: e.src, tgt: e.tgt };
+      if (diagramKind(mermaidCodeInput.value) === 'flow') endpoints = connectionEndpoints(e.src, e.tgt, clusterMembership);
+      const a = nodeBounds(endpoints.src, e.path.parentNode), b = nodeBounds(endpoints.tgt, e.path.parentNode);
       if (!a || !b) return null;
       if (e.src === e.tgt) {
         const x = a.cx + a.hw, y = a.cy, r = Math.max(35, a.hw, a.hh);
@@ -1762,7 +1807,8 @@
           y: n.box.y + Math.max(0, Math.min(1, port.y)) * n.box.height
         }, n.el, e.path.parentNode);
       };
-      const sourcePort = portPoint(e.src, saved?.sourcePort), targetPort = portPoint(e.tgt, saved?.targetPort);
+      const sourcePort = endpoints.src === e.src ? portPoint(e.src, saved?.sourcePort) : null;
+      const targetPort = endpoints.tgt === e.tgt ? portPoint(e.tgt, saved?.targetPort) : null;
       let x1, y1, x2, y2, d;
       if (horizontal) {
         x1 = s > 0 ? a.right : a.left; y1 = a.cy; x2 = s > 0 ? b.left : b.right; y2 = b.cy;
@@ -1813,7 +1859,9 @@
       const edge = edgeIndex.find(item => item.src === activeEdge.src && item.tgt === activeEdge.tgt && item.idx === activeEdge.idx);
       const anchors = edge && routeEdge(edge);
       if (!edge || !anchors) return;
+      const endpoints = connectionEndpoints(edge.src, edge.tgt, clusterMembership);
       [['source', edge.src, anchors.from], ['target', edge.tgt, anchors.to]].forEach(([endpoint, id, anchor]) => {
+        if ((endpoint === 'source' ? endpoints.src : endpoints.tgt) !== id) return;
         const n = nodeIndex[id], point = n && pointBetweenParents(anchor, edge.path.parentNode, n.el);
         if (!point) return;
         const handle = document.createElementNS(SVG_NS, 'circle');
@@ -2070,17 +2118,30 @@
     }
 
     function fitAutoClusters() {
-      for (const id of Object.keys(projectState.autoFitClusters || {})) {
+      const groups = clusterMembership.map(group => group.id).sort((a, b) => (clusterContents(a)?.clusters.length || 0) - (clusterContents(b)?.clusters.length || 0));
+      for (const id of groups) {
         const cluster = [...mermaidRender.querySelectorAll('g.cluster')].find(el => el.id === id);
         const rect = cluster?.querySelector(':scope > rect'), matrix = cluster?.getCTM();
         const contents = clusterContents(id);
         if (!rect || !matrix || !contents?.nodes.length) continue;
         const inverse = matrix.inverse(), points = [];
+        applyClusterTitleStyle(cluster);
         for (const nodeId of contents.nodes) {
           const n = nodeIndex[nodeId], m = n?.el.getCTM();
           if (!m) continue;
           const box = n.box, transform = inverse.multiply(m);
           for (const x of [box.x, box.x + box.width]) for (const y of [box.y, box.y + box.height]) points.push(new DOMPoint(x, y).matrixTransform(transform));
+        }
+        for (const childId of contents.clusters) {
+          if (childId === id) continue;
+          const child = [...mermaidRender.querySelectorAll('g.cluster')].find(el => el.id === childId);
+          const childRect = child?.querySelector(':scope > rect'), childMatrix = childRect?.getCTM();
+          if (!childRect || !childMatrix) continue;
+          const box = childRect.getBBox(), shape = projectState.clusterStyles?.[childId]?.shape;
+          const factor = shape === 'diamond' ? 2 : shape === 'ellipse' ? Math.SQRT2 : 1;
+          const cx = box.x + box.width / 2, cy = box.y + box.height / 2, transform = inverse.multiply(childMatrix);
+          for (const x of [cx - box.width * factor / 2, cx + box.width * factor / 2])
+            for (const y of [cy - box.height * factor / 2, cy + box.height * factor / 2]) points.push(new DOMPoint(x, y).matrixTransform(transform));
         }
         if (!points.length) continue;
         const label = cluster.querySelector(':scope > .cluster-label'), labelBox = label?.getBBox();
@@ -2093,10 +2154,9 @@
         rect.setAttribute('width', right - left); rect.setAttribute('height', bottom - top);
         if (label) label.setAttribute('transform', `translate(${(left + right - (labelBox?.width || 0)) / 2}, ${top + 4})`);
       }
-      if (activeClusterId && projectState.autoFitClusters?.[activeClusterId]) highlightCluster();
-      edgeIndex.forEach(edge => {
-        if (projectState.autoFitClusters?.[edge.src] || projectState.autoFitClusters?.[edge.tgt]) routeEdge(edge);
-      });
+      renderClusterBoundaries();
+      if (activeClusterId) highlightCluster();
+      edgeIndex.forEach(routeEdge);
     }
 
     function applyClusterPositions() {
@@ -3023,7 +3083,7 @@
         updateStatus('Pointer mode active', 'emerald');
         return;
       }
-      if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Cluster Wand works on flowcharts only', 'amber'); return; }
+      if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Cluster Editor Wand works on flowcharts only', 'amber'); return; }
       setAreaSelect(false); clearMultiSelection();
       if (connectArmed || disconnectArmed) disarmWands();
       clusterEditMode = true;
@@ -3032,7 +3092,7 @@
       btn.setAttribute('aria-pressed', 'true');
       btn.classList.remove('bg-slate-800', 'border-slate-700', 'text-slate-200');
       btn.classList.add('bg-emerald-700', 'border-emerald-500', 'text-white');
-      updateStatus('Cluster Wand: select a subgraph to edit', 'emerald');
+      updateStatus('Cluster Editor Wand: select a subgraph to edit', 'emerald');
     }
 
     function setConnectButton(text, active) {
@@ -3171,7 +3231,7 @@
     }
 
     function handleConnectClick(nodeEl) {
-      const nodeId = (nodeEl.id || '').replace(/^flowchart-/, '').replace(/-\d+$/, '');
+      const nodeId = nodeEl.matches('g.cluster') ? nodeEl.id : (nodeEl.id || '').replace(/^flowchart-/, '').replace(/-\d+$/, '');
       if (!nodeId) return;
       if (mermaidCodeInput.value.trim() !== clusterMembershipCode) {
         updateStatus('Wait for the diagram to finish rendering before connecting nodes', 'amber'); return;
@@ -3187,6 +3247,9 @@
       let endpoints;
       try { endpoints = connectionEndpoints(src, nodeId, clusterMembership); }
       catch (err) { updateStatus(`Cannot connect nodes: ${err.message}`, 'amber'); return; }
+      if (endpoints.src === endpoints.tgt && src !== nodeId) {
+        updateStatus('Cannot connect a cluster to an object inside that same cluster', 'amber'); return;
+      }
       mermaidRender.querySelectorAll('.connect-source').forEach(n => n.classList.remove('connect-source'));
       connectSourceNodeId = nodeId;
       nodeEl.classList.add('connect-source');
@@ -3544,15 +3607,145 @@
       mermaidRender.querySelectorAll('.cluster-selection').forEach(el => el.remove());
       if (!activeClusterId) return;
       const cluster = [...mermaidRender.querySelectorAll('g.cluster')].find(el => el.id === activeClusterId);
-      const rect = cluster?.querySelector(':scope > rect');
-      if (!rect) return;
-      const outline = rect.cloneNode(false);
+      const boundary = cluster?.querySelector(':scope > .vsm-cluster-boundary');
+      if (!boundary) return;
+      const outline = boundary.cloneNode(false);
       outline.removeAttribute('style');
       outline.setAttribute('class', 'cluster-selection');
+      outline.style.setProperty('fill', 'none', 'important');
+      outline.style.setProperty('stroke', '#60a5fa', 'important');
+      outline.style.setProperty('stroke-width', '3px', 'important');
+      outline.style.setProperty('stroke-dasharray', '6 4', 'important');
+      outline.style.setProperty('pointer-events', 'none', 'important');
       cluster.appendChild(outline);
     }
 
     function clearActiveCluster() { activeClusterId = null; highlightCluster(); }
+
+    function applyClusterTitleStyle(cluster) {
+      const label = cluster.querySelector(':scope > .cluster-label');
+      const foreignObject = label?.querySelector('foreignObject');
+      const content = foreignObject?.firstElementChild, text = content?.querySelector('.nodeLabel');
+      if (!content || !text) return;
+      const style = projectState.clusterStyles?.[cluster.id]?.title || {};
+      label.querySelector(':scope > .vsm-cluster-title-background')?.remove();
+      const properties = {
+        'font-size': Number.isFinite(style.size) ? `${Math.max(8, Math.min(72, style.size))}px` : '',
+        'font-weight': style.bold ? 'bold' : '',
+        'font-style': style.italic ? 'italic' : '',
+        'text-decoration': style.underline ? 'underline' : '',
+        'color': style.color || ''
+      };
+      for (const element of [content, text]) {
+        for (const [property, value] of Object.entries(properties)) {
+          if (value) element.style.setProperty(property, value, 'important');
+          else element.style.removeProperty(property);
+        }
+      }
+      foreignObject.setAttribute('width', '10000');
+      foreignObject.setAttribute('height', '1000');
+      const width = Math.max(1, content.offsetWidth), height = Math.max(1, content.offsetHeight);
+      foreignObject.setAttribute('width', width);
+      foreignObject.setAttribute('height', height);
+      if (style.background) {
+        const background = document.createElementNS(SVG_NS, 'rect');
+        background.setAttribute('class', 'vsm-cluster-title-background');
+        background.setAttribute('x', '-6'); background.setAttribute('y', '-3');
+        background.setAttribute('width', width + 12); background.setAttribute('height', height + 6);
+        background.setAttribute('rx', '4');
+        background.style.setProperty('fill', style.backgroundColor || '#0f172a', 'important');
+        background.style.setProperty('stroke', 'none', 'important');
+        label.insertBefore(background, foreignObject);
+      }
+    }
+
+    function renderClusterBoundaries() {
+      const clusters = [...mermaidRender.querySelectorAll('g.cluster')];
+      clusters.sort((a, b) => (clusterContents(a.id)?.clusters.length || 0) - (clusterContents(b.id)?.clusters.length || 0));
+      clusters.forEach(cluster => {
+        const rect = cluster.querySelector(':scope > rect');
+        if (!rect) return;
+        if (!cluster.dataset.vsmFill) {
+          const css = getComputedStyle(rect);
+          cluster.dataset.vsmFill = clusterHex(css.fill, '#1e293b');
+          cluster.dataset.vsmStroke = clusterHex(css.stroke, '#64748b');
+          cluster.dataset.vsmOpacity = css.fillOpacity;
+        }
+        cluster.querySelectorAll(':scope > .vsm-cluster-boundary, :scope > .vsm-cluster-port').forEach(el => el.remove());
+        const saved = projectState.clusterStyles?.[cluster.id] || {};
+        const shape = saved.shape || 'rectangle';
+        const label = cluster.querySelector(':scope > .cluster-label');
+        applyClusterTitleStyle(cluster);
+        const matrix = cluster.getCTM();
+        const contents = clusterContents(cluster.id);
+        if (label && matrix && contents) {
+          const labelBox = label.getBBox(), inverse = matrix.inverse(), rectBox = rect.getBBox();
+          const center = rectBox.x + rectBox.width / 2;
+          const obstacles = [];
+          const addObstacle = (box, transform) => {
+            const points = [new DOMPoint(box.x, box.y), new DOMPoint(box.x + box.width, box.y),
+              new DOMPoint(box.x, box.y + box.height), new DOMPoint(box.x + box.width, box.y + box.height)].map(p => p.matrixTransform(transform));
+            obstacles.push({ left: Math.min(...points.map(p => p.x)), right: Math.max(...points.map(p => p.x)),
+              top: Math.min(...points.map(p => p.y)), bottom: Math.max(...points.map(p => p.y)) });
+          };
+          for (const id of contents.nodes) {
+            const node = nodeIndex[id], nodeMatrix = node?.el.getCTM();
+            if (nodeMatrix) addObstacle(node.box, inverse.multiply(nodeMatrix));
+          }
+          for (const id of contents.clusters) {
+            if (id === cluster.id) continue;
+            const childLabel = clusters.find(child => child.id === id)?.querySelector(':scope > .cluster-label');
+            const childMatrix = childLabel?.getCTM();
+            if (childMatrix) addObstacle(childLabel.getBBox(), inverse.multiply(childMatrix));
+          }
+          let top = rectBox.y;
+          for (let pass = 0; pass <= obstacles.length; pass++) {
+            const previousTop = top;
+            for (const obstacle of obstacles) {
+              if (obstacle.right >= center - labelBox.width / 2 && obstacle.left <= center + labelBox.width / 2 &&
+                  obstacle.top < top + labelBox.height + 12 && obstacle.bottom > top) {
+                top = Math.min(top, obstacle.top - labelBox.height - 12);
+              }
+            }
+            if (top === previousTop) break;
+          }
+          if (top < rectBox.y) {
+            rect.setAttribute('y', top);
+            rect.setAttribute('height', rectBox.height + rectBox.y - top);
+          }
+          label.setAttribute('transform', `translate(${center - labelBox.width / 2 - labelBox.x}, ${top + 4 - labelBox.y})`);
+        }
+        const box = rect.getBBox(), cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+        const factor = shape === 'diamond' ? 2 : shape === 'ellipse' ? Math.SQRT2 : 1;
+        const w = box.width * factor, h = box.height * factor, x = cx - w / 2, y = cy - h / 2;
+        const path = document.createElementNS(SVG_NS, 'path');
+        path.setAttribute('class', 'vsm-cluster-boundary');
+        let d;
+        if (shape === 'diamond') d = `M ${cx} ${y} L ${x + w} ${cy} L ${cx} ${y + h} L ${x} ${cy} Z`;
+        else if (shape === 'ellipse') d = `M ${x} ${cy} A ${w / 2} ${h / 2} 0 1 0 ${x + w} ${cy} A ${w / 2} ${h / 2} 0 1 0 ${x} ${cy} Z`;
+        else {
+          const r = shape === 'rounded' ? Math.min(20, w / 4, h / 4) : 0;
+          d = `M ${x + r} ${y} H ${x + w - r} Q ${x + w} ${y} ${x + w} ${y + r} V ${y + h - r} Q ${x + w} ${y + h} ${x + w - r} ${y + h} H ${x + r} Q ${x} ${y + h} ${x} ${y + h - r} V ${y + r} Q ${x} ${y} ${x + r} ${y} Z`;
+        }
+        path.setAttribute('d', d);
+        path.style.setProperty('fill', saved.transparent ? 'none' : saved.fill || cluster.dataset.vsmFill, 'important');
+        path.style.setProperty('fill-opacity', String(saved.opacity ?? cluster.dataset.vsmOpacity ?? 1), 'important');
+        path.style.setProperty('stroke', saved.transparent || saved.border === 'hidden' ? 'none' : saved.stroke || cluster.dataset.vsmStroke, 'important');
+        path.style.setProperty('stroke-width', '6px', 'important');
+        path.style.setProperty('stroke-dasharray', saved.border === 'dashed' ? '5 5' : 'none', 'important');
+        cluster.insertBefore(path, rect);
+        rect.style.setProperty('visibility', 'hidden', 'important');
+        for (const [px, py] of [[cx, y], [x + w, cy], [cx, y + h], [x, cy]]) {
+          const port = document.createElementNS(SVG_NS, 'circle');
+          port.setAttribute('class', 'vsm-cluster-port');
+          port.setAttribute('cx', px); port.setAttribute('cy', py); port.setAttribute('r', '6');
+          port.style.setProperty('fill', 'none', 'important');
+          port.style.setProperty('stroke', saved.stroke || cluster.dataset.vsmStroke, 'important');
+          port.style.setProperty('stroke-width', '3px', 'important');
+          cluster.appendChild(port);
+        }
+      });
+    }
 
     function clusterHex(value, fallback) {
       const match = value.match(/^rgb\(\s*(\d+)[, ]+\s*(\d+)[, ]+\s*(\d+)/);
@@ -3570,20 +3763,29 @@
       activeClusterId = id;
       const rect = [...mermaidRender.querySelectorAll('g.cluster')].find(el => el.id === id)?.querySelector(':scope > rect');
       if (!rect) { clearActiveCluster(); return; }
+      const cluster = rect.parentNode;
       const css = getComputedStyle(rect), saved = projectState.clusterStyles?.[id];
-      const style = saved || {
-        fill: clusterHex(css.fill, '#1e293b'), stroke: clusterHex(css.stroke, '#64748b'),
+      const style = {
+        fill: cluster.dataset.vsmFill || clusterHex(css.fill, '#1e293b'), stroke: cluster.dataset.vsmStroke || clusterHex(css.stroke, '#64748b'),
         opacity: Number.isFinite(parseFloat(css.fillOpacity)) ? parseFloat(css.fillOpacity) : 1,
-        border: css.stroke === 'none' ? 'hidden' : css.strokeDasharray !== 'none' ? 'dashed' : 'solid',
-        transparent: css.fill === 'none' && css.stroke === 'none'
+        border: 'solid', transparent: false, ...saved
       };
       document.getElementById('inspectorClusterId').value = id;
       document.getElementById('inspectorClusterTitle').value = block.label;
+      const titleStyle = style.title || {}, labelText = cluster.querySelector('.cluster-label .nodeLabel');
+      document.getElementById('inspectorClusterTitleSize').value = titleStyle.size ?? 16;
+      document.getElementById('inspectorClusterTitleColor').value = titleStyle.color || (labelText ? clusterHex(getComputedStyle(labelText).color, '#f1f5f9') : '#f1f5f9');
+      document.getElementById('inspectorClusterTitleBold').checked = !!titleStyle.bold;
+      document.getElementById('inspectorClusterTitleItalic').checked = !!titleStyle.italic;
+      document.getElementById('inspectorClusterTitleUnderline').checked = !!titleStyle.underline;
+      document.getElementById('inspectorClusterTitleBackground').checked = !!titleStyle.background;
+      document.getElementById('inspectorClusterTitleBackgroundColor').value = titleStyle.backgroundColor || '#0f172a';
+      document.getElementById('inspectorClusterTitleBackgroundColor').disabled = !titleStyle.background;
+      document.getElementById('inspectorClusterShape').value = style.shape || 'rectangle';
       document.getElementById('inspectorClusterFill').value = style.fill;
       document.getElementById('inspectorClusterStroke').value = style.stroke;
-      document.getElementById('inspectorClusterOpacity').value = style.opacity;
-      document.getElementById('inspectorClusterBorder').value = style.border;
-      document.getElementById('inspectorClusterTransparent').setAttribute('aria-pressed', String(style.transparent));
+      document.getElementById('inspectorClusterOpacity').value = style.transparent ? 0 : style.opacity;
+      document.getElementById('inspectorClusterBorder').value = style.transparent ? 'hidden' : style.border;
       activeColorPickerId = 'inspectorClusterFill';
       highlightCluster(); switchInspectorTab('cluster'); showInspectorDrawer();
     }
@@ -3596,10 +3798,38 @@
       const block = parsed.blocks.find(b => b.id === activeClusterId);
       if (!block) { updateStatus('Subgraph no longer exists in the Mermaid code', 'amber'); return; }
       const title = encodeSubgraphTitle(document.getElementById('inspectorClusterTitle').value.replace(/\r?\n/g, ' ') || activeClusterId);
+      const label = [...mermaidRender.querySelectorAll('g.cluster')].find(cluster => cluster.id === activeClusterId)?.querySelector('.cluster-label .nodeLabel');
+      if (label) {
+        label.textContent = document.getElementById('inspectorClusterTitle').value || activeClusterId;
+      }
       parsed.lines[block.start] = `${block.indent}subgraph ${block.id} ["${title}"]`;
       preserveConnectionPositions();
+      fitAutoClusters();
       mermaidCodeInput.value = projectState.mermaid = parsed.lines.join('\n');
       updateLineNumbers(); debouncedRender();
+    }
+
+    function updateClusterTitleStyle() {
+      if (!activeClusterId) return;
+      const sizeInput = document.getElementById('inspectorClusterTitleSize');
+      const size = Number(sizeInput.value);
+      if (!sizeInput.value || !Number.isFinite(size) || size < 8 || size > 72) {
+        updateStatus('Title size must be between 8 and 72', 'amber');
+        return;
+      }
+      const background = document.getElementById('inspectorClusterTitleBackground').checked;
+      document.getElementById('inspectorClusterTitleBackgroundColor').disabled = !background;
+      projectState.clusterStyles = projectState.clusterStyles || {};
+      const style = projectState.clusterStyles[activeClusterId] || {};
+      style.title = {
+        size, color: document.getElementById('inspectorClusterTitleColor').value,
+        bold: document.getElementById('inspectorClusterTitleBold').checked,
+        italic: document.getElementById('inspectorClusterTitleItalic').checked,
+        underline: document.getElementById('inspectorClusterTitleUnderline').checked,
+        background, backgroundColor: document.getElementById('inspectorClusterTitleBackgroundColor').value
+      };
+      projectState.clusterStyles[activeClusterId] = style;
+      fitAutoClusters();
     }
 
     function updateClusterStyle() {
@@ -3609,21 +3839,17 @@
         if (!subgraphBlocks(mermaidCodeInput.value).blocks.some(block => block.id === id)) throw new Error('Subgraph no longer exists in the Mermaid code.');
       } catch (err) { updateStatus(`Cannot edit subgraph: ${err.message}`, 'amber'); return; }
       const style = {
+        ...projectState.clusterStyles?.[id],
         fill: document.getElementById('inspectorClusterFill').value,
         stroke: document.getElementById('inspectorClusterStroke').value,
         opacity: Number(document.getElementById('inspectorClusterOpacity').value),
         border: document.getElementById('inspectorClusterBorder').value,
-        transparent: document.getElementById('inspectorClusterTransparent').getAttribute('aria-pressed') === 'true'
+        shape: document.getElementById('inspectorClusterShape').value
       };
+      delete style.transparent;
       projectState.clusterStyles = projectState.clusterStyles || {};
       projectState.clusterStyles[id] = style;
-      const rect = [...mermaidRender.querySelectorAll('g.cluster')].find(cluster => cluster.id === id)?.querySelector(':scope > rect');
-      if (rect) {
-        rect.style.setProperty('fill', style.transparent ? 'none' : style.fill);
-        rect.style.setProperty('fill-opacity', String(style.opacity));
-        rect.style.setProperty('stroke', style.transparent || style.border === 'hidden' ? 'none' : style.stroke);
-        rect.style.setProperty('stroke-dasharray', style.border === 'dashed' ? '5 5' : 'none');
-      }
+      fitAutoClusters();
       const pattern = new RegExp('^([ \\t]*style[ \\t]+' + escapeRegExp(id) + '[ \\t]+)([^\\n]*?)(\\r?)$', 'gm');
       const properties = new Map();
       let code = mermaidCodeInput.value.replace(pattern, (_, prefix, declarations) => {
@@ -3633,20 +3859,14 @@
         });
         return '';
       });
-      properties.set('fill', style.transparent ? 'none' : style.fill);
+      properties.set('fill', style.fill);
       properties.set('fill-opacity', String(style.opacity));
-      properties.set('stroke', style.transparent || style.border === 'hidden' ? 'none' : style.stroke);
+      properties.set('stroke', style.border === 'hidden' ? 'none' : style.stroke);
       properties.set('stroke-dasharray', style.border === 'dashed' ? '5 5' : 'none');
       code = code.replace(/\s*$/, '\n') + `    style ${id} ${[...properties].map(([key, value]) => `${key}:${value}`).join(',')};\n`;
       preserveConnectionPositions();
       mermaidCodeInput.value = projectState.mermaid = code;
       updateLineNumbers(); debouncedRender();
-    }
-
-    function toggleClusterTransparent() {
-      const button = document.getElementById('inspectorClusterTransparent');
-      button.setAttribute('aria-pressed', String(button.getAttribute('aria-pressed') !== 'true'));
-      updateClusterStyle();
     }
 
     async function deleteCluster(contents) {
@@ -4693,7 +4913,7 @@
     function resetZoom() { if (panZoomInstance) { panZoomInstance.resetZoom(); panZoomInstance.fit(); panZoomInstance.center(); } }
     function clearCode() { mermaidCodeInput.value = projectState.mermaid = ''; projectState.positions = {}; projectState.clusterPositions = {}; projectState.autoFitClusters = {}; projectState.notes = {}; projectState.styles = {}; projectState.dimensions = {}; projectState.edges = {}; projectState.metrics = {}; projectState.clusterStyles = {}; resetInteractionState(); updateLineNumbers(); renderDiagram(); calculateVSMMetrics(); }
     function formatCode() { mermaidCodeInput.value = mermaidCodeInput.value.split('\n').map(l => l.trimEnd()).join('\n'); updateLineNumbers(); }
-    const EXPORT_STYLE_PROPS = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'font-style', 'color', 'background-color', 'text-anchor', 'dominant-baseline', 'text-align', 'line-height', 'display', 'padding', 'white-space', 'overflow', 'visibility', 'filter'];
+    const EXPORT_STYLE_PROPS = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'opacity', 'font-family', 'font-size', 'font-weight', 'font-style', 'text-decoration', 'color', 'background-color', 'text-anchor', 'dominant-baseline', 'text-align', 'line-height', 'display', 'padding', 'white-space', 'overflow', 'visibility', 'filter'];
     function exportBaseName() {
       const t = (projectState.title || 'mermaid-studio').toString().trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
       return t || 'mermaid-studio';
@@ -4706,7 +4926,7 @@
         if (!inner) return;
         const lines = (inner.innerText || inner.textContent || '').split(/\n+/).map(s => s.trim()).filter(Boolean);
         if (!lines.length) return;
-        const cs = getComputedStyle(inner);
+        const cs = getComputedStyle(inner.querySelector('.nodeLabel') || inner);
         const size = parseFloat(cs.fontSize) || 14, lh = size * 1.2;
         const num = a => parseFloat(fo.getAttribute(a)) || 0;
         const x = num('x') + num('width') / 2;
@@ -4718,6 +4938,8 @@
         text.setAttribute('font-family', cs.fontFamily);
         text.setAttribute('font-size', size);
         text.setAttribute('font-weight', cs.fontWeight);
+        text.setAttribute('font-style', cs.fontStyle);
+        text.setAttribute('text-decoration', cs.textDecorationLine);
         lines.forEach((line, n) => {
           const t = document.createElementNS(SVG_NS, 'tspan');
           t.setAttribute('x', x); t.setAttribute('y', y0 + n * lh);

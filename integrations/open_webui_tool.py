@@ -125,7 +125,7 @@ class Tools:
         body = (
             '<iframe id="vsm" title="Mermaid Studio" '
             + ("" if use_post_message else f'src="{html.escape(url, quote=True)}" ')
-            + f'sandbox="{SANDBOX}" '
+            + f'sandbox="{SANDBOX}" allow="fullscreen" allowfullscreen '
             f'style="width:100%;height:{int(self.valves.iframe_height)}px;border:0;background:#020617"></iframe>'
             + ('<p id="vsm-error" role="alert">Loading project; JavaScript and iframe embedding must be enabled.</p>' if use_post_message else "")
             + script

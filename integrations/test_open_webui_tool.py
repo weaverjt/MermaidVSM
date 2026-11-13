@@ -39,6 +39,7 @@ class OpenWebUIToolTests(unittest.TestCase):
         self.assertEqual(state, {"title": "Département", "mermaid": source})
         self.assertEqual(parse_qs(parts.query), {"lang": ["en"]})
         self.assertTrue(parts.fragment.startswith("state="))
+        self.assertIn("allowfullscreen", self.response_text(self.tool.render_vsm(source)))
 
     def test_full_project_round_trip(self):
         state = {"project": {"title": "Existing"}, "mermaid": "graph LR\n A-->B",
