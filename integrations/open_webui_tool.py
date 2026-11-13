@@ -19,6 +19,54 @@ from pydantic import BaseModel, Field
 # served from a DIFFERENT origin than Open WebUI. Never point `studio_url` at the
 # Open WebUI origin itself with these flags, or the frame can escape its sandbox.
 SANDBOX = "allow-scripts allow-same-origin allow-popups allow-forms allow-modals"
+ICON_KEYS = {
+    "process_dedicated", "process_shared", "workcell", "supermarket", "safety_stock",
+    "fifo", "data_box", "inspection", "supplier", "customer", "milk_run", "actor",
+    "kaizen", "scissors", "cloud", "truck", "plane", "document", "clock", "box",
+    "push", "pull",
+}
+NODE_CATEGORIES = {"process", "inventory", "information", "transport", "people", "event", "external", "flow"}
+FLOW_TYPES = {"material-push", "material-pull", "information-manual", "information-electronic", "callout"}
+EDGE_ARROWS = {"directed", "bidirectional", "circle", "double_circle", "cross", "double_cross", "open", "none"}
+
+
+def validate_project_state(state: Any) -> None:
+    """Validate metadata consumed by Studio without modifying the project payload."""
+    if not isinstance(state, dict) or not isinstance(state.get("mermaid"), str) or not state["mermaid"].strip():
+        raise ValueError('JSON must contain a non-empty "mermaid" field.')
+    version = state.get("schemaVersion")
+    if version is not None and (type(version) is not int or version != 1):
+        raise ValueError('"schemaVersion" must be 1 when provided.')
+    for section in ("metrics", "nodes", "styles", "edges", "notes"):
+        value = state.get(section)
+        if value is not None and not isinstance(value, dict):
+            raise ValueError(f'"{section}" must be an object.')
+    for section in ("metrics", "nodes", "styles", "edges", "notes"):
+        entries = state.get(section, {})
+        for key, entry in entries.items():
+            if not isinstance(key, str) or not isinstance(entry, dict):
+                raise ValueError(f'Each "{section}" entry must be an object keyed by a string.')
+    for node_id, metadata in (state.get("nodes") or {}).items():
+        if metadata.get("icon") is not None and metadata["icon"] not in ICON_KEYS:
+            raise ValueError(f'Unsupported icon for node "{node_id}".')
+        if metadata.get("category") is not None and metadata["category"] not in NODE_CATEGORIES:
+            raise ValueError(f'Unsupported category for node "{node_id}".')
+    for node_id, metrics in (state.get("metrics") or {}).items():
+        if metrics.get("icon") is not None and metrics["icon"] not in ICON_KEYS:
+            raise ValueError(f'Unsupported legacy metric icon for node "{node_id}".')
+    for edge_id, edge in (state.get("edges") or {}).items():
+        if edge.get("flowType") is not None and edge["flowType"] not in FLOW_TYPES:
+            raise ValueError(f'Unsupported flowType for edge "{edge_id}".')
+        if edge.get("arrow") is not None and edge["arrow"] not in EDGE_ARROWS:
+            raise ValueError(f'Unsupported arrow for edge "{edge_id}".')
+        for endpoint in ("source", "target"):
+            if edge.get(endpoint) is not None and (not isinstance(edge[endpoint], str) or not edge[endpoint]):
+                raise ValueError(f'Edge "{edge_id}" has an invalid {endpoint}.')
+        if edge.get("index") is not None and (type(edge["index"]) is not int or edge["index"] < 0):
+            raise ValueError(f'Edge "{edge_id}" index must be a non-negative integer.')
+    for note_id, note in (state.get("notes") or {}).items():
+        if not isinstance(note.get("targetId"), str) or not note["targetId"]:
+            raise ValueError(f'Note "{note_id}" must have a non-empty targetId.')
 
 
 def encode_state(state: Union[dict, str]) -> str:
@@ -82,12 +130,11 @@ class Tools:
         Open one Value Stream Map / process flow in Mermaid Studio.
         Each call creates a separate embedded canvas. Use this OR render_vsm once
         per requested map, not both or repeated calls to test or revise it.
-        :param project_json: A .vsm.json document as a JSON string ({"project":{...},"mermaid":"...","metrics":{...}}).
+        :param project_json: A .vsm.json document as JSON, optionally including schemaVersion, nodes, edges, and notes metadata.
         """
         try:
             state: Any = json.loads(project_json)
-            if not isinstance(state, dict) or not isinstance(state.get("mermaid"), str) or not state["mermaid"].strip():
-                raise ValueError('JSON must contain a non-empty "mermaid" field.')
+            validate_project_state(state)
         except (json.JSONDecodeError, TypeError, ValueError) as exc:
             return self._error(f"Invalid VSM JSON: {exc}")
         return self._render(state)

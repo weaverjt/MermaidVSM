@@ -67,21 +67,99 @@ and unknowns explicitly and proceed with a clearly marked draft.
 - For a known friction point, define `classDef friction fill:#451a03,stroke:#f97316,stroke-width:2px,color:#ffedd5;`
   and apply `class P2 friction;`. The `friction` metric drives the Studio
   summary; the Mermaid class controls diagram styling. Set both when appropriate.
-- The Studio offers a library of process, inventory, flow, operator, cloud,
-  transport, document, clock, and other visual symbols; node and cluster
-  styling, notes, resizing, moving, undo/redo, and project save/export. These
-  editor features are not all ordinary Mermaid syntax. Do not claim that a
-  label or a metric field alone creates a particular custom icon, positioned
-  note, manual connector anchor, or editor layout. Use the editor for those
-  features or preserve existing `.vsm` project state.
-- For a project with supplied measurements, pass a JSON string to
-  `open_vsm_studio(project_json=...)`: use `{"title":"Map title",
-  "mermaid":"graph LR\n    P1[\"Receive order\"]","metrics":{"P1":{"title":"Receive order",
-  "owner":"Receiving","ct":5,"co":0,"wip":2,"friction":false}}}`.
-  IDs in `metrics` must match Mermaid node IDs. Include only known metric
-  values; omitted values are not measurements. This state populates inspector
-  data and summary totals; do not assume metrics alone add visible label pills.
-  For a Mermaid-only draft, call `render_vsm(mermaid_code=..., title=...)`.
+- The Studio offers custom process, inventory, flow, operator, cloud, transport,
+  document, clock, and other symbols; node and cluster styling, notes, resizing,
+  moving, undo/redo, and project save/export. Most of these are Studio state,
+  not standard Mermaid syntax. Use `open_vsm_studio(project_json=...)` to
+  hydrate this metadata at initial render; a metrics field alone does not add
+  an icon. Keep Mermaid source simple for topology and layout, and supply the
+  visual semantics in the JSON `nodes`, `edges`, and `notes` maps. The source
+  remains unchanged; export/save a `.vsm` project to preserve Studio-only data.
+- For a project, pass a JSON string to `open_vsm_studio(project_json=...)`. Its
+  schema is:
+
+  ```json
+  {
+    "schemaVersion": 1,
+    "title": "Current State",
+    "mermaid": "graph LR\n    P1[\"Receive order\"] --> P2[\"Inspect order\"]",
+    "nodes": {
+      "P1": {"icon": "process_dedicated", "category": "process"},
+      "P2": {"icon": "inspection", "category": "process"}
+    },
+    "metrics": {
+      "P1": {"owner": "Receiving", "ct": 5, "co": 0, "wip": 2, "friction": false}
+    },
+    "edges": {
+      "P1_to_P2": {"flowType": "material-push", "label": "Traveler"}
+    },
+    "notes": {
+      "note_1": {"targetId": "P2", "text": "Verify the incoming lot"}
+    }
+  }
+  ```
+
+  `schemaVersion` may be omitted for legacy-compatible payloads; use `1` for
+  this schema. Node IDs and edge keys must match the Mermaid diagram. `nodes`
+  metadata supplies the custom icon and category without changing the Mermaid
+  source. Legacy `metrics[id].icon` is still accepted, but new maps should put
+  icons in `nodes[id].icon`. Include only known metric values; omitted values
+  are not measurements. Metrics populate inspector data and summary totals.
+  Notes require a `targetId` referring to a real Mermaid node; invalid targets
+  are retained and reported instead of silently discarded.
+- Category defaults use the Studio's three color families: Blue (`process`,
+  `inventory`), Red (`people`, `event`, `external`), and Green (`information`,
+  `transport`, `flow`). Per-node `styles` may provide `fill`, `stroke`, and
+  `textColor` overrides. `metrics[id].friction: true` overrides those colors
+  with the amber friction palette.
+- Valid `icon` keys (choose one for `nodes[id].icon`):
+
+  | Icon key | Meaning | Suggested category |
+  |---|---|---|
+  | `process_dedicated` | Dedicated process | `process` |
+  | `process_shared` | Shared process | `process` |
+  | `workcell` | Workcell | `process` |
+  | `inspection` | Quality inspection | `process` |
+  | `supermarket` | Supermarket inventory | `inventory` |
+  | `safety_stock` | Safety stock | `inventory` |
+  | `fifo` | FIFO lane | `inventory` |
+  | `box` | Box or package | `inventory` |
+  | `data_box` | Data box | `information` |
+  | `document` | SOP or traveler | `information` |
+  | `supplier` | External supplier | `external` |
+  | `cloud` | ERP or external system | `external` |
+  | `customer` | Customer | `people` |
+  | `actor` | Human operator | `people` |
+  | `kaizen` | Kaizen event | `event` |
+  | `scissors` | Cutoff | `event` |
+  | `clock` | Wait or lead-time marker | `event` |
+  | `milk_run` | Milk run | `transport` |
+  | `truck` | Ground freight | `transport` |
+  | `plane` | Air freight | `transport` |
+  | `push` | Push flow symbol | `flow` |
+  | `pull` | Pull flow symbol | `flow` |
+
+- Valid `category` values are `process`, `inventory`, `information`,
+  `transport`, `people`, `event`, `external`, and `flow`. Select the category
+  that best describes the node's role, not just its icon.
+- Edge metadata uses an `edges` object keyed by `Source_to_Target`, for
+  example `"P1_to_P2"`. `source`, `target`, and `index` are optional; Studio
+  infers endpoints and duplicate-edge index from the key, with the first edge
+  using index `0`. Prefer omitting these fields unless disambiguation is
+  needed. Supported `flowType` values:
+
+  | `flowType` | Studio rendering |
+  |---|---|
+  | `material-push` | Thick patterned push connector |
+  | `material-pull` | Solid connector with arrow pointing toward its source |
+  | `information-manual` | Dotted information connector |
+  | `information-electronic` | Electronic zigzag information connector |
+  | `callout` | Dashed, marker-free callout; use for Kaizen/data-box annotations |
+
+  Optional `label` supplies the connector label. Optional `arrow` values are
+  `directed`, `bidirectional`, `circle`, `double_circle`, `cross`,
+  `double_cross`, `open`, and `none`; `callout` always suppresses arrowheads.
+  For a plain Mermaid-only draft, call `render_vsm(mermaid_code=..., title=...)`.
   Supply actual multiline Mermaid source, not a Markdown code fence or Base64.
   The tool handles encoding. If tools are unavailable, provide Mermaid in a
   fenced code block and any known metrics separately.

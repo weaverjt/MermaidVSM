@@ -422,6 +422,7 @@
               <option value="cross">Cross / Stop (--x)</option>
               <option value="double_cross">Double Cross (x--x)</option>
               <option value="open">Open Link (---)</option>
+              <option value="none">No Arrowhead</option>
             </select>
           </div>
           <p id="inspectorEdgeNote" class="hidden text-[11px] text-amber-300"></p>
@@ -614,6 +615,13 @@
     function normalizeProjectSettings() {
       if (!projectState.settings || typeof projectState.settings !== 'object' || Array.isArray(projectState.settings)) projectState.settings = {};
       if (typeof projectState.settings.autoOpenInspector !== 'boolean') projectState.settings.autoOpenInspector = false;
+      if (!projectState.nodes || typeof projectState.nodes !== 'object' || Array.isArray(projectState.nodes)) projectState.nodes = {};
+      if (!projectState.metrics || typeof projectState.metrics !== 'object' || Array.isArray(projectState.metrics)) projectState.metrics = {};
+      Object.entries(projectState.metrics).forEach(([id, metrics]) => {
+        if (metrics && typeof metrics.icon === 'string' && !projectState.nodes[id]?.icon) {
+          projectState.nodes[id] = { ...projectState.nodes[id], icon: metrics.icon };
+        }
+      });
       if (!projectState.styles || typeof projectState.styles !== 'object' || Array.isArray(projectState.styles)) projectState.styles = {};
       if (!projectState.dimensions || typeof projectState.dimensions !== 'object' || Array.isArray(projectState.dimensions)) projectState.dimensions = {};
       if (!Array.isArray(projectState.colorHistory)) projectState.colorHistory = [];
@@ -1094,7 +1102,7 @@
     }
 
     function hydrateFromState(parsed, sourceUrl) {
-      if (!parsed || typeof parsed.mermaid !== 'string') throw new Error('State has no "mermaid" field.');
+      validateProjectState(parsed);
       const name = parsed.project?.title || parsed.title || 'Imported Canvas';
       openCanvasTab(name, parsed, sourceUrl);
     }
@@ -1196,7 +1204,6 @@
           pruneOrphanPositions();
           pruneOrphanDimensions();
           applyDefaultNodeDimensions();
-          if (pruneMetricsOnRender) pruneOrphanNotes();
           pruneOrphanMetrics();
           const wandSource = connectArmed ? connectSourceNodeId : disconnectSourceNodeId;
           if (wandSource) {
@@ -1214,7 +1221,17 @@
           const flowEdges = parseMermaidEdges(code);
           edgeIndex.forEach(e => {
             const edge = findFlowEdgeFromElement(e.path, flowEdges);
+            const edgeMetadata = edge && getStateEdgeMetadata(edge, flowEdges);
             e.visualStyle = edge && getFlowEdgeStyle(edge);
+            if (edgeMetadata?.flowType === 'callout' || edgeMetadata?.arrow === 'none') {
+              e.path.removeAttribute('marker-end');
+              e.path.removeAttribute('marker-start');
+              e.path.style.setProperty('marker-end', 'none', 'important');
+              e.path.style.setProperty('marker-start', 'none', 'important');
+            } else if (edgeMetadata?.flowType === 'material-pull' && edgeMetadata.arrow !== 'none') {
+              moveEdgeArrowToSource(e.path, svgElement);
+            }
+            if (e.visualStyle === 'callout') e.path.style.setProperty('stroke-dasharray', '7 5', 'important');
             if (e.visualStyle === 'electronic') e.path.style.setProperty('stroke-dasharray', 'none', 'important');
             if (e.visualStyle === 'push') {
               const ns = 'http://www.w3.org/2000/svg';
@@ -1254,6 +1271,8 @@
           ? `Nodes: ${Object.keys(nodeIndex).length}` : 'Nodes: —';
         if (connectArmed) updateStatus(connectSourceNodeId ? `Source ${connectSourceNodeId} selected: click the next target, or press Esc to stop` : 'Connect mode: click the source node', 'emerald');
         else if (disconnectArmed) updateStatus(disconnectSourceNodeId ? `Node ${disconnectSourceNodeId} selected: click another node or a connection` : 'Disconnect mode: click a connection or two nodes', 'emerald');
+        const orphanNotes = Object.entries(projectState.notes || {}).filter(([, note]) => !nodeIndex[note.targetId]);
+        if (orphanNotes.length) updateStatus(`${orphanNotes.length} note(s) target missing nodes; metadata retained`, 'amber');
       } catch (err) { if (sequence === renderSequence) { showError(err.str || err.message || 'Syntax Error encountered.'); updateStatus('Syntax Error', 'rose'); } }
     }
 
@@ -1359,11 +1378,11 @@
         const iconContainer = n.foreignObject?.querySelector('[data-icon]');
         const icon = iconContainer?.dataset.icon;
         if (!ICON_PRIMITIVES.has(icon)) return;
-        const style = projectState.styles?.[id];
+        const style = getEffectiveNodeStyle(id);
         const svg = iconContainer.querySelector('svg');
         if (svg) {
           const fill = style?.fill || svg.getAttribute('fill') || '#1f2020';
-          const stroke = style?.stroke || svg.getAttribute('stroke') || '#ffffff';
+          const stroke = projectState.styles?.[id]?.stroke || svg.getAttribute('stroke') || '#ffffff';
           svg.style.setProperty('--vsm-symbol-stroke', stroke);
           svg.style.setProperty('fill', fill, 'important');
           svg.style.setProperty('stroke', 'var(--vsm-symbol-stroke)', 'important');
@@ -1373,7 +1392,7 @@
           });
         }
         n.shapeElements.forEach(({ element }, index) => {
-          const visible = !!parsed?.borderVisible;
+          const visible = !!(parsed?.borderVisible || projectState.metrics?.[id]?.borderVisible);
           element.style.setProperty('fill', 'none', 'important');
           element.style.setProperty('stroke', visible && index === 0 ? style?.stroke || '#475569' : 'none', 'important');
           element.style.setProperty('stroke-width', visible && index === 0 ? '2px' : '0', 'important');
@@ -1382,17 +1401,35 @@
       });
     }
 
+    function moveEdgeArrowToSource(path, svg) {
+      const markerRef = path.getAttribute('marker-end') || getComputedStyle(path).markerEnd;
+      const match = markerRef?.match(/url\(["']?#([^"')]+)["']?\)/);
+      if (!match) return;
+      const marker = [...svg.querySelectorAll('marker')].find(item => item.id === match[1]);
+      if (!marker) return;
+      const clone = marker.cloneNode(true);
+      const cloneId = `${match[1]}-pull-${Math.random().toString(36).slice(2, 8)}`;
+      clone.id = cloneId;
+      clone.setAttribute('orient', 'auto-start-reverse');
+      (svg.querySelector('defs') || svg).appendChild(clone);
+      path.removeAttribute('marker-end');
+      path.style.removeProperty('marker-end');
+      path.setAttribute('marker-start', `url(#${cloneId})`);
+    }
+
     function applyStoredNodeStyles() {
-      Object.entries(projectState.styles || {}).forEach(([id, style]) => {
+      Object.keys(nodeIndex).forEach(id => {
         const n = nodeIndex[id];
-        if (!n) return;
-        const isIcon = ICON_PRIMITIVES.has(parseNodeDefinition(mermaidCodeInput.value, id)?.icon);
+        const style = getEffectiveNodeStyle(id);
+        if (!Object.keys(style).length) return;
+        const isIcon = ICON_PRIMITIVES.has(n.foreignObject?.querySelector('[data-icon]')?.dataset.icon);
         if (!isIcon) {
           n.shapeElements.forEach(({ element }) => {
             if (style.fill) element.style.setProperty('fill', element.hasAttribute('data-vsm-double-outline') ? 'none' : style.fill, 'important');
             if (style.stroke) element.style.setProperty('stroke', style.stroke, 'important');
           });
         }
+
         const label = n.foreignObject?.querySelector('.nodeLabel');
         if (label && style.textColor) {
           [label, ...label.querySelectorAll('span')].forEach(element => {
@@ -2536,14 +2573,6 @@
       Object.entries(projectState.notes || {}).forEach(([id, n]) => { if (n.targetId === nodeId) placeNote(id); });
     }
 
-    // Removes notes whose target node no longer exists. Skipped for diagrams without a node index (sequence).
-    function pruneOrphanNotes() {
-      const notes = projectState.notes;
-      if (!notes || !Object.keys(nodeIndex).length) return;
-      Object.keys(notes).forEach(id => { if (!nodeIndex[notes[id].targetId]) delete notes[id]; });
-      if (activeNoteId && !notes[activeNoteId]) { setActiveNote(null); }
-    }
-
     function setActiveNote(id) {
       activeNoteId = id;
       mermaidRender.querySelectorAll('g.process-note').forEach(g => {
@@ -2646,13 +2675,15 @@
         const node = nodeIndex[sourceId], parsed = node && parseNodeDefinition(mermaidCodeInput.value, sourceId);
         if (!node || !parsed) return null;
         const metrics = clone(projectState.metrics[sourceId] || {});
+        const nodeMetadata = clone(projectState.nodes?.[sourceId] || {});
         Object.assign(metrics, {
-          title: parsed.title, shape: parsed.shape, icon: parsed.icon, bold: parsed.bold,
+          title: parsed.title, shape: parsed.shape, icon: nodeMetadata.icon || parsed.icon, bold: parsed.bold,
           doubleBorder: parsed.doubleBorder, borderVisible: parsed.borderVisible
         });
         return {
           sourceId,
           metrics,
+          nodeMetadata,
           style: projectState.styles?.[sourceId] ? clone(projectState.styles[sourceId]) : null,
           mermaidStyle: mermaidCodeInput.value.match(new RegExp('^[ \\t]*style[ \\t]+' + escapeRegExp(sourceId) + '(?![\\w])[^\\n]*', 'm'))?.[0] || '',
           dimensions: projectState.dimensions?.[sourceId] ? clone(projectState.dimensions[sourceId]) : null,
@@ -2673,12 +2704,14 @@
       const pasted = copiedNodeEntries.map(entry => ({ entry, id: uniqueNodeId(`${entry.sourceId}Copy`) }));
       try {
         projectState.metrics = projectState.metrics || {};
+        projectState.nodes = projectState.nodes || {};
         projectState.styles = projectState.styles || {};
         projectState.dimensions = projectState.dimensions || {};
         projectState.notes = projectState.notes || {};
         projectState.mermaid = mermaidCodeInput.value = `${mermaidCodeInput.value.trimEnd()}\n${pasted.map(({ id }) => `    ${id}`).join('\n')}`;
         pasted.forEach(({ entry, id }) => {
           projectState.metrics[id] = clone(entry.metrics);
+          if (Object.keys(entry.nodeMetadata).length) projectState.nodes[id] = clone(entry.nodeMetadata);
           if (entry.style) projectState.styles[id] = clone(entry.style);
           if (entry.dimensions) projectState.dimensions[id] = clone(entry.dimensions);
           entry.notes.forEach(({ id: noteId, note }, index) => {
@@ -2738,11 +2771,12 @@
       const metrics = clone(projectState.metrics[sourceId] || {});
       metrics.title = parsed.title;
       metrics.shape = parsed.shape;
-      metrics.icon = parsed.icon;
+      metrics.icon = projectState.nodes?.[sourceId]?.icon || parsed.icon;
       metrics.bold = parsed.bold;
       metrics.doubleBorder = parsed.doubleBorder;
       metrics.borderVisible = parsed.borderVisible;
       projectState.metrics[id] = metrics;
+      if (projectState.nodes?.[sourceId]) projectState.nodes[id] = clone(projectState.nodes[sourceId]);
       if (projectState.styles?.[sourceId]) projectState.styles[id] = clone(projectState.styles[sourceId]);
       if (projectState.dimensions?.[sourceId]) projectState.dimensions[id] = clone(projectState.dimensions[sourceId]);
       projectState.mermaid = mermaidCodeInput.value = `${mermaidCodeInput.value.trimEnd()}\n    ${id}`;
@@ -2964,6 +2998,23 @@
       return deleteSelectedNodeOrEdge();
     }
 
+    function removeNodeProjectState(nodeId, allEdges) {
+      delete projectState.metrics?.[nodeId];
+      delete projectState.nodes?.[nodeId];
+      delete projectState.positions?.[nodeId];
+      delete projectState.styles?.[nodeId];
+      delete projectState.dimensions?.[nodeId];
+      Object.entries(projectState.notes || {}).forEach(([noteId, note]) => {
+        if (note.targetId === nodeId) delete projectState.notes[noteId];
+      });
+      Object.entries(projectState.edges || {}).forEach(([key, metadata]) => {
+        const matchesNode = allEdges.some(edge =>
+          (edge.src === nodeId || edge.tgt === nodeId) && getStateEdgeMetadata(edge, allEdges) === metadata
+        );
+        if (matchesNode || metadata.source === nodeId || metadata.target === nodeId) delete projectState.edges[key];
+      });
+    }
+
     async function deleteSelectedNodes() {
       if (diagramKind(mermaidCodeInput.value) !== 'flow') { updateStatus('Multi-node deletion works on flowcharts only', 'amber'); return; }
       const ids = [...multiSelection].filter(id => nodeIndex[id]);
@@ -2971,16 +3022,10 @@
       if (hasManagedClusterConnection(ids)) { updateStatus('Remove the connected subgraph edges before deleting their selected child nodes', 'amber'); return; }
       preserveConnectionPositions();
       let code = mermaidCodeInput.value;
+      const allEdges = parseMermaidEdges(code);
       ids.forEach(id => {
         code = deleteFromFlowchart(code, id, null);
-        delete projectState.metrics[id];
-        delete projectState.positions?.[id];
-        delete projectState.styles?.[id];
-        delete projectState.dimensions?.[id];
-        Object.entries(projectState.notes || {}).forEach(([noteId, note]) => { if (note.targetId === id) delete projectState.notes[noteId]; });
-        Object.entries(projectState.edges || {}).forEach(([key, edge]) => {
-          if (edge.source === id || edge.target === id) delete projectState.edges[key];
-        });
+        removeNodeProjectState(id, allEdges);
       });
       mermaidCodeInput.value = projectState.mermaid = code;
       closeInspector();
@@ -2992,6 +3037,7 @@
 
     async function deleteSelectedNodeOrEdge() {
       const code = mermaidCodeInput.value, kind = diagramKind(code);
+      const allEdges = kind === 'flow' ? parseMermaidEdges(code) : [];
       if (!activeEdge && !activeNodeId) { updateStatus('Select a node or connection first', 'amber'); return; }
       const nodeId = activeNodeId, edgeRef = activeEdge;
       if (nodeId && hasManagedClusterConnection([nodeId])) { updateStatus('Remove the connected subgraph edges before deleting this child node', 'amber'); return; }
@@ -2999,15 +3045,10 @@
       if (next === null || next === code) { updateStatus('Nothing to delete for this selection (subgraphs are not deletable)', 'amber'); return; }
       preserveConnectionPositions();
       mermaidCodeInput.value = projectState.mermaid = next;
-      if (nodeId) { delete projectState.metrics[nodeId]; if (projectState.positions) delete projectState.positions[nodeId]; if (projectState.styles) delete projectState.styles[nodeId]; if (projectState.dimensions) delete projectState.dimensions[nodeId]; Object.entries(projectState.notes || {}).forEach(([k, n]) => { if (n.targetId === nodeId) delete projectState.notes[k]; }); }
+      if (nodeId) removeNodeProjectState(nodeId, allEdges);
       if (edgeRef && projectState.edges) {
         if (kind === 'flow') removeFlowEdgeMetadata(edgeRef, parseDisconnectEdges(code));
         else delete projectState.edges[edgeKey(edgeRef)];
-      }
-      if (nodeId && projectState.edges) {
-        Object.entries(projectState.edges).forEach(([key, edge]) => {
-          if (edge.source === nodeId || edge.target === nodeId) delete projectState.edges[key];
-        });
       }
       closeInspector();
       updateLineNumbers(); calculateVSMMetrics();
@@ -3026,7 +3067,14 @@
       // The diagram code is the source of truth: shape, icon and title are read from one definition.
       const parsed = isFlowchart ? parseNodeDefinition(code, nodeId) : null;
       const sub = isFlowchart && !parsed ? findSubgraph(code, nodeId) : null;
-      if (parsed) { m.shape = parsed.shape; m.icon = parsed.icon; m.title = parsed.title ?? nodeId; m.bold = !!parsed.bold; m.doubleBorder = !!parsed.doubleBorder; m.borderVisible = !!parsed.borderVisible; }
+      if (parsed) {
+        m.shape = parsed.shape;
+        m.icon = projectState.nodes?.[nodeId]?.icon || parsed.icon || '';
+        m.title = parsed.title ?? nodeId;
+        m.bold = !!parsed.bold;
+        m.doubleBorder = !!parsed.doubleBorder;
+        m.borderVisible = !!parsed.borderVisible;
+      }
       else if (sub) { m.shape = 'rect'; m.icon = ''; m.title = sub.label; }
       else if (kind === 'sequence') { m.shape = 'rect'; m.icon = ''; m.title = parseSequenceParticipants(code)[nodeId]?.label || nodeId; }
       else if (kind === 'state' && /^root_(start|end)$/.test(nodeId)) { m.shape = 'rect'; m.icon = ''; m.title = nodeId === 'root_start' ? 'Start [*]' : 'End [*]'; }
@@ -3400,16 +3448,35 @@
       debouncedRender();
     }
 
+    const CATEGORY_PALETTES = {
+      process: { fill: '#1e3a8a', stroke: '#60a5fa', textColor: '#eff6ff' },
+      inventory: { fill: '#1e40af', stroke: '#93c5fd', textColor: '#eff6ff' },
+      people: { fill: '#7f1d1d', stroke: '#f87171', textColor: '#fff1f2' },
+      event: { fill: '#991b1b', stroke: '#fca5a5', textColor: '#fff1f2' },
+      external: { fill: '#7f1d1d', stroke: '#f87171', textColor: '#fff1f2' },
+      information: { fill: '#14532d', stroke: '#4ade80', textColor: '#f0fdf4' },
+      transport: { fill: '#166534', stroke: '#86efac', textColor: '#f0fdf4' },
+      flow: { fill: '#064e3b', stroke: '#34d399', textColor: '#ecfdf5' }
+    };
+    const FRICTION_PALETTE = { fill: '#451a03', stroke: '#f97316', textColor: '#ffedd5' };
+
+    function getEffectiveNodeStyle(nodeId) {
+      const category = projectState.nodes?.[nodeId]?.category;
+      const style = { ...(CATEGORY_PALETTES[category] || {}), ...(projectState.styles?.[nodeId] || {}) };
+      return projectState.metrics?.[nodeId]?.friction ? { ...style, ...FRICTION_PALETTE } : style;
+    }
+
     function getNodeColors(nodeId) {
-      const stored = projectState.styles?.[nodeId];
+      const stored = getEffectiveNodeStyle(nodeId);
       const shape = nodeIndex[nodeId]?.shapeElements[0]?.element;
       const computed = shape ? getComputedStyle(shape) : null;
       const label = nodeIndex[nodeId]?.foreignObject?.querySelector('.nodeLabel');
       const labelComputed = label ? getComputedStyle(label) : null;
       const icon = nodeIndex[nodeId]?.foreignObject?.querySelector('[data-icon] svg');
+      const stroke = icon ? projectState.styles?.[nodeId]?.stroke || icon.getAttribute('stroke') : stored?.stroke || computed?.stroke;
       return {
         fill: normalizePickerColor(stored?.fill || icon?.getAttribute('fill') || computed?.fill, '#1e293b'),
-        stroke: normalizePickerColor(stored?.stroke || icon?.getAttribute('stroke') || computed?.stroke, '#475569'),
+        stroke: normalizePickerColor(stroke, '#475569'),
         textColor: normalizePickerColor(stored?.textColor || labelComputed?.color, '#cccccc')
       };
     }
@@ -4006,11 +4073,11 @@
     function iconBadge(icon, nodeId) {
       const paths = ICONS[icon];
       if (!paths) return '';
-      const style = projectState.styles?.[nodeId];
+      const style = getEffectiveNodeStyle(nodeId);
       const fill = normalizePickerColor(style?.fill, '#1f2020');
       const rgb = fill.slice(1).match(/.{2}/g).map(v => parseInt(v, 16));
       const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
-      const stroke = normalizePickerColor(style?.stroke, luminance > 0.55 ? '#0f172a' : '#ffffff');
+      const stroke = normalizePickerColor(projectState.styles?.[nodeId]?.stroke, luminance > 0.55 ? '#0f172a' : '#ffffff');
       return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='56' height='56' fill='${fill}' stroke='${stroke}' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>${paths}</svg>`;
     }
     function iconTitleLabel(icon, nodeId, title, shape, doubleBorder, borderVisible) {
@@ -4250,7 +4317,9 @@
       [[styleSel, 'style'], [arrowSel, 'arrow']].forEach(([sel, key]) => {
         [...sel.options].forEach(o => { o.disabled = !!allowed && !allowed[key].includes(o.value); });
       });
-      styleSel.value = activeEdge.kind === 'flow' ? getFlowEdgeStyle(edge) : edge.style; arrowSel.value = edge.arrow;
+      const metadata = activeEdge.kind === 'flow' ? getStateEdgeMetadata(edge) : null;
+      styleSel.value = activeEdge.kind === 'flow' && metadata?.flowType === 'callout' ? 'dotted' : activeEdge.kind === 'flow' ? getFlowEdgeStyle(edge) : edge.style;
+      arrowSel.value = metadata?.flowType === 'callout' ? 'none' : metadata?.arrow || edge.arrow;
       refreshEdgeInspectorState();
       switchInspectorTab('edge');
       showInspectorDrawer();
@@ -4304,17 +4373,44 @@
     // the render input so loading a project does not silently rewrite its source.
     function standaloneRenderCode(code) {
       if (diagramKind(code) !== 'flow') return code;
-      return code.replace(/\b(\w+)([\[({>]+)"([^"\n]*)"/g, (original, id, opener, label) => {
-        if (/^\s*<span[^>]*display:inline-flex/i.test(label)) {
+      let rendered = code;
+      if (projectState.edges && diagramKind(rendered) === 'flow') {
+        const edges = parseMermaidEdges(code);
+        const replacements = [];
+        edges.forEach(edge => {
+          const metadata = getStateEdgeMetadata(edge, edges);
+          if (!metadata || (!metadata.flowType && !metadata.arrow && metadata.label == null)) return;
+          const flowStyles = {
+            'material-push': 'push',
+            'material-pull': 'solid',
+            'information-manual': 'dotted',
+            'information-electronic': 'electronic',
+            callout: 'dotted'
+          };
+          const style = flowStyles[metadata.flowType] || metadata.style || edge.style;
+          const arrow = metadata.flowType === 'callout' ? 'none' :
+            (metadata.arrow || (metadata.flowType === 'material-pull' ? 'directed' : edge.arrow));
+          const label = metadata.label == null ? edge.label : String(metadata.label);
+          const connector = buildMermaidConnector(style, arrow, label);
+          replacements.push({ start: edge.start, end: edge.end, connector });
+        });
+        replacements.sort((a, b) => b.start - a.start).forEach(item => {
+          rendered = rendered.slice(0, item.start) + item.connector + rendered.slice(item.end);
+        });
+      }
+      rendered = rendered.replace(/\b(\w+)([\[({>]+)"([^"\n]*)"/g, (original, id, opener, label) => {
+        const parsed = splitIconLabel(label);
+        const icon = projectState.nodes?.[id]?.icon || parsed.icon;
+        if (!projectState.nodes?.[id]?.icon && /^\s*<span[^>]*display:inline-flex/i.test(label)) {
           return original.replace('text-align:center;white-space:nowrap', 'text-align:center;max-width:160px;white-space:normal;overflow-wrap:anywhere')
             .replace("display:block;line-height:1.2", "display:block;max-width:100%;line-height:1.2");
         }
-        const parsed = splitIconLabel(label);
-        if (!ICON_PRIMITIVES.has(parsed.icon)) return original;
+        if (!ICON_PRIMITIVES.has(icon)) return original;
         const pill = (label.match(/<br\s*\/?>\s*<span[^>]*text-\[10px\][^>]*>[\s\S]*?<\/span>\s*$/i) || [''])[0];
         const title = parsed.bold ? `<b>${parsed.text}</b>` : parsed.text;
-        return `${id}${opener}"${iconTitleLabel(parsed.icon, id, title, parsed.shape, parsed.doubleBorder, parsed.borderVisible)}${pill}"`;
+        return `${id}${opener}"${iconTitleLabel(icon, id, title, parsed.shape, parsed.doubleBorder, parsed.borderVisible)}${pill}"`;
       });
+      return rendered;
     }
 
     // Finds every definition of nodeId that carries a shape enclosure, e.g. A(["label"]).
@@ -4561,10 +4657,30 @@
     }
 
     function getFlowEdgeStyle(edge) {
-      const saved = projectState.edges?.[edgeKey(edge)]?.style;
+      const metadata = getStateEdgeMetadata(edge);
+      const typeStyles = {
+        'material-push': 'push',
+        'material-pull': 'solid',
+        'information-manual': 'dotted',
+        'information-electronic': 'electronic',
+        callout: 'callout'
+      };
+      if (metadata?.flowType) return typeStyles[metadata.flowType] || edge.style;
+      const saved = metadata?.style;
       if (saved === 'electronic' && edge.style === 'dotted') return saved;
       if (saved === 'push' && edge.style === 'thick') return saved;
       return edge.style;
+    }
+
+    function getStateEdgeMetadata(edge, allEdges = parseMermaidEdges(mermaidCodeInput.value)) {
+      for (const [key, metadata] of Object.entries(projectState.edges || {})) {
+        const keyed = allEdges.find(candidate => edgeKey(candidate) === key);
+        const source = metadata.source ?? keyed?.src;
+        const target = metadata.target ?? keyed?.tgt;
+        const index = metadata.index ?? keyed?.idx ?? 0;
+        if (source === edge.src && target === edge.tgt && index === edge.idx) return metadata;
+      }
+      return null;
     }
 
     function findFlowEdgeFromElement(el, edges = parseMermaidEdges(mermaidCodeInput.value)) {
@@ -4643,16 +4759,35 @@
     const PROJECT_FORMAT = 'MermaidVSM';
     const PROJECT_VERSION = 1;
     const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+    const ICON_KEYS = new Set(['process_dedicated', 'process_shared', 'workcell', 'supermarket', 'safety_stock', 'fifo', 'data_box', 'inspection', 'supplier', 'customer', 'milk_run', 'actor', 'kaizen', 'scissors', 'cloud', 'truck', 'plane', 'document', 'clock', 'box', 'push', 'pull']);
+    const NODE_CATEGORIES = new Set(['process', 'inventory', 'information', 'transport', 'people', 'event', 'external', 'flow']);
+    const FLOW_TYPES = new Set(['material-push', 'material-pull', 'information-manual', 'information-electronic', 'callout']);
+    const EDGE_ARROWS = new Set(['directed', 'bidirectional', 'circle', 'double_circle', 'cross', 'double_cross', 'open', 'none']);
 
     function validateProjectState(state) {
-      if (!isRecord(state) || typeof state.mermaid !== 'string') throw new Error('Canvas is missing Mermaid code.');
-      for (const key of ['metrics', 'positions', 'notes', 'styles', 'dimensions', 'edges', 'clusterStyles', 'clusterPositions', 'autoFitClusters', 'settings']) {
+      if (!isRecord(state) || typeof state.mermaid !== 'string' || !state.mermaid.trim()) throw new Error('Canvas is missing Mermaid code.');
+      if (state.schemaVersion != null && (!Number.isInteger(state.schemaVersion) || state.schemaVersion !== 1)) throw new Error('"schemaVersion" must be 1 when provided.');
+      for (const key of ['metrics', 'nodes', 'positions', 'notes', 'styles', 'dimensions', 'edges', 'clusterStyles', 'clusterPositions', 'autoFitClusters', 'settings']) {
         if (state[key] != null && !isRecord(state[key])) throw new Error(`Invalid canvas ${key}.`);
       }
-      for (const key of ['metrics', 'positions', 'notes', 'styles', 'dimensions', 'edges', 'clusterStyles', 'clusterPositions']) {
+      for (const key of ['metrics', 'nodes', 'positions', 'notes', 'styles', 'dimensions', 'edges', 'clusterStyles', 'clusterPositions']) {
         if (state[key] && Object.values(state[key]).some(value => !isRecord(value))) throw new Error(`Invalid canvas ${key} entry.`);
       }
       if (state.notes && Object.values(state.notes).some(note => typeof note.targetId !== 'string' || !note.targetId)) throw new Error('Invalid note target.');
+      Object.entries(state.nodes || {}).forEach(([id, node]) => {
+        if (node.icon != null && !ICON_KEYS.has(node.icon)) throw new Error(`Unsupported icon for node "${id}".`);
+        if (node.category != null && !NODE_CATEGORIES.has(node.category)) throw new Error(`Unsupported category for node "${id}".`);
+      });
+      Object.entries(state.metrics || {}).forEach(([id, metrics]) => {
+        if (metrics.icon != null && !ICON_KEYS.has(metrics.icon)) throw new Error(`Unsupported legacy metric icon for node "${id}".`);
+      });
+      Object.entries(state.edges || {}).forEach(([id, edge]) => {
+        if (edge.flowType != null && !FLOW_TYPES.has(edge.flowType)) throw new Error(`Unsupported flowType for edge "${id}".`);
+        if (edge.arrow != null && !EDGE_ARROWS.has(edge.arrow)) throw new Error(`Unsupported arrow for edge "${id}".`);
+        if (edge.source != null && (typeof edge.source !== 'string' || !edge.source)) throw new Error(`Invalid source for edge "${id}".`);
+        if (edge.target != null && (typeof edge.target !== 'string' || !edge.target)) throw new Error(`Invalid target for edge "${id}".`);
+        if (edge.index != null && (!Number.isInteger(edge.index) || edge.index < 0)) throw new Error(`Invalid index for edge "${id}".`);
+      });
       if (state.clusterPositions && Object.values(state.clusterPositions).some(p => !Number.isFinite(p.x) || !Number.isFinite(p.y))) throw new Error('Invalid cluster position.');
       if (state.autoFitClusters && Object.values(state.autoFitClusters).some(value => value !== true)) throw new Error('Invalid auto-fit cluster.');
     }
